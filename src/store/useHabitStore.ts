@@ -7,9 +7,9 @@ const MOCK_USER_ID = 'mock-user-001';
 
 export const SLEEP_HABIT_ID = 'habit-sleep';
 
-const SLEEP_HABIT: TimeHabit = {
+export const SLEEP_HABIT: TimeHabit = {
   id: SLEEP_HABIT_ID,
-  name: 'Uyku',
+  name: 'Uyku Takvimi',
   icon: '🌙',
   color: '#7C3AED',
   type: 'time',
@@ -73,7 +73,26 @@ export const useHabitStore = create<HabitState>((set, get) => ({
   },
 
   updateLog: (habitId, date, updates) => {
-    // Firebase implementation will go here
+    set((state) => {
+      const existing = state.logs.find(l => l.habitId === habitId && l.date === date);
+      if (existing) {
+        return {
+          logs: state.logs.map(l => l.id === existing.id ? { ...l, ...updates, updatedAt: new Date().toISOString() } : l)
+        };
+      } else {
+        const newLog: HabitLog = {
+          id: `local-${Date.now()}`,
+          habitId,
+          date,
+          userId: existing?.userId || 'local-user',
+          status: updates.status || 'done',
+          ...updates,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        return { logs: [...state.logs, newLog] };
+      }
+    });
   },
 
   setFilter: (filter) => set({ filter }),

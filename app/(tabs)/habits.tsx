@@ -7,7 +7,7 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-import { useHabitStore, SLEEP_HABIT_ID } from '@/src/store/useHabitStore';
+import { useHabitStore, SLEEP_HABIT_ID, SLEEP_HABIT } from '@/src/store/useHabitStore';
 import { useStreak } from '@/src/hooks/useStreak';
 import { DoneHabit, TimeHabit, BadHabit, HabitLog } from '@/src/types/habit';
 import { ProgressRing } from '@/components/ui/ProgressRing';
@@ -254,6 +254,8 @@ function TimeCard({ habit, logs, onPress, onLongPress }: { habit: TimeHabit; log
     [logs]);
   const goalWeekMins = habit.goalMinutes * 7;
   const progress = Math.min(1, weekMins / goalWeekMins);
+  const isSleep = habit.id === SLEEP_HABIT_ID;
+  const noData = isSleep && logs.length === 0;
 
   return (
     <HabitCardWrap onPress={onPress} onLongPress={onLongPress}>
@@ -263,21 +265,16 @@ function TimeCard({ habit, logs, onPress, onLongPress }: { habit: TimeHabit; log
         </View>
         <View style={timeStyles.nameCol}>
           <Text style={[timeStyles.name, { color: t.t1 }]}>{habit.name}</Text>
-          <Text style={[timeStyles.sub, { color: t.t2 }]}>{i18n.weeklyGoalLabel}</Text>
+          <Text style={[timeStyles.sub, { color: t.t2 }]}>
+            {noData ? "İlk alışkanlığınız için uyku vaktinizi girin" : ""}
+          </Text>
         </View>
         <View style={timeStyles.rightCol}>
-          <Text style={timeStyles.bigTime}>{fmtHM(weekMins)}</Text>
-          <Text style={[timeStyles.goalText, { color: t.t3 }]}>/ {fmtHM(goalWeekMins)}</Text>
+          <Text style={timeStyles.bigTime}>{noData ? "—" : fmtHM(weekMins)}</Text>
+          <Text style={[timeStyles.goalText, { color: t.t3 }]}>{""}</Text>
         </View>
       </View>
-      <View style={[timeStyles.track, { backgroundColor: t.rowBg }]}>
-        <LinearGradient
-          colors={['#7c3aed', '#a855f7']}
-          style={[timeStyles.fill, { width: `${Math.round(progress * 100)}%` as `${number}%` }]}
-          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-        />
-      </View>
-      <Text style={[timeStyles.pctLabel, { color: t.t3 }]}>{Math.round(progress * 100)}{i18n.weeklyGoalReached}</Text>
+      {/* Haftalık hedef takibi kaldırıldı */}
     </HabitCardWrap>
   );
 }
@@ -473,7 +470,6 @@ function BadSummaryCard({ badHabits, allLogs }: { badHabits: BadHabit[]; allLogs
       <View style={summaryStyles.badRow}>
         <View style={{ flex: 1 }}>
           <Text style={[summaryStyles.weekLabel, { color: t.t3 }]}>THIS WEEK</Text>
-          <Text style={[summaryStyles.bigNumBad, { color: t.tAccent }]}>{totalExceeded} {i18n.exceedLabel}</Text>
           <Text style={[summaryStyles.subLabel, { color: t.t2 }]}>{i18n.stayStrong}</Text>
         </View>
         <ProgressRing
@@ -525,7 +521,13 @@ export default function HabitsScreen() {
 
   const activeHabits = useMemo(() => habits.filter((h) => !h.isArchived), [habits]);
   const doneHabits = useMemo(() => activeHabits.filter((h) => h.type === 'done') as DoneHabit[], [activeHabits]);
-  const timeHabits = useMemo(() => activeHabits.filter((h) => h.type === 'time' && h.id !== SLEEP_HABIT_ID) as TimeHabit[], [activeHabits]);
+  const timeHabits = useMemo(() => {
+    const list = activeHabits.filter((h) => h.type === 'time') as TimeHabit[];
+    if (!list.some(h => h.id === SLEEP_HABIT_ID)) {
+      list.unshift(SLEEP_HABIT);
+    }
+    return list;
+  }, [activeHabits]);
   const badHabits = useMemo(() => activeHabits.filter((h) => h.type === 'bad') as BadHabit[], [activeHabits]);
 
   const getHabitLogs = useCallback((habitId: string) => logs.filter((l) => l.habitId === habitId), [logs]);
@@ -613,9 +615,7 @@ export default function HabitsScreen() {
           {/* ── BAD ── */}
           {activeTab === 'bad' && (
             <>
-              {badHabits.length > 0 && (
-                <BadSummaryCard badHabits={badHabits} allLogs={logs} />
-              )}
+              {/* BadSummaryCard kaldırıldı */}
               {badHabits.length === 0 && <EmptyMsg text={i18n.emptyBad} t={t} />}
               {badHabits.map((h) => (
                 <BadCard

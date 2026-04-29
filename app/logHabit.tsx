@@ -11,7 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
@@ -406,16 +406,18 @@ const STATUS_OPTIONS: { key: LogStatus; label: string; style: 'dashed' | 'outlin
 
 export default function LogHabitScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ habitId?: string; type?: HabitType; date?: string }>();
+  
   const { habits, updateLog, lastUsedHabitId, setLastUsedHabitId } = useHabitStore();
   const { user, isGuest } = useAuthStore();
 
-  const [selectedType, setSelectedType] = useState<HabitType>('done');
-  const [selectedHabitId, setSelectedHabitId] = useState<string | null>(null);
+  const [selectedType, setSelectedType] = useState<HabitType>(params.type || 'done');
+  const [selectedHabitId, setSelectedHabitId] = useState<string | null>(params.habitId || null);
   const [habitPickerVisible, setHabitPickerVisible] = useState(false);
   const [status, setStatus] = useState<LogStatus | null>('done');
   const [notes, setNotes] = useState('');
   const [openPanel, setOpenPanel] = useState<'notes' | null>('notes');
-  const [selectedDate, setSelectedDate] = useState<string>(getTodayString());
+  const [selectedDate, setSelectedDate] = useState<string>(params.date || getTodayString());
   const [savedResult, setSavedResult] = useState<SavedResult | null>(null);
 
   // TIME — mod ve saat state

@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
-import { useHabitStore, SLEEP_HABIT_ID } from '@/src/store/useHabitStore';
+import { useHabitStore, SLEEP_HABIT_ID, SLEEP_HABIT } from '@/src/store/useHabitStore';
 import { TimerDisplay } from '@/components/habits/TimerDisplay';
 import { DoneToggle } from '@/components/habits/DoneToggle';
 import { BadHabitCounter } from '@/components/habits/BadHabitCounter';
@@ -69,7 +69,7 @@ export default function HabitDetailScreen() {
   const router = useRouter();
   const { habits, logs, getTodayLog, toggleLog, deleteHabit } = useHabitStore();
 
-  const habit = habits.find((h) => h.id === id);
+  const habit = habits.find((h) => h.id === id) || (id === SLEEP_HABIT_ID ? SLEEP_HABIT : undefined);
   const todayLog = getTodayLog(id ?? '');
   const streak = useStreak(id ?? '', habit?.type ?? 'done');
 

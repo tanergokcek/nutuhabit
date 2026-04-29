@@ -5,9 +5,9 @@ import { textStyles } from '@/constants/typography';
 import { ThemeTokens, useAppTheme } from '@/src/hooks/useAppTheme';
 import { useStreak } from '@/src/hooks/useStreak';
 import { useTranslation } from '@/src/hooks/useTranslation';
-import { fetchHabits, fetchLogs, upsertLog } from '@/src/services/habits';
+import { fetchHabits, fetchLogs, upsertLog, createHabitWithId } from '@/src/services/habits';
 import { useAuthStore } from '@/src/store/useAuthStore';
-import { SLEEP_HABIT_ID, useHabitStore } from '@/src/store/useHabitStore';
+import { SLEEP_HABIT, SLEEP_HABIT_ID, useHabitStore } from '@/src/store/useHabitStore';
 import { useLanguageStore } from '@/src/store/useLanguageStore';
 import { BadHabit, DoneHabit, TimeHabit } from '@/src/types/habit';
 import { getTodayString } from '@/src/utils/date';
@@ -1026,10 +1026,9 @@ const sleepStyles = StyleSheet.create({
 // ─── Günlük 24 Saatlik Zaman Barı ────────────────────────────────────────────
 const TOTAL_DAY_MINUTES = 24 * 60; // 1440
 
-function DailyTimeBarCard({ allTimeHabits, t }: { allTimeHabits: TimeHabit[]; t: ThemeTokens }) {
+function DailyTimeBarCard({ allTimeHabits, selectedDate, t }: { allTimeHabits: TimeHabit[]; selectedDate: string; t: ThemeTokens }) {
   const logs = useHabitStore((state) => state.logs);
   const { language } = useLanguageStore();
-  const today = getTodayString();
 
   const bounceAnim = useRef(new Animated.Value(0)).current;
 
@@ -1057,7 +1056,7 @@ function DailyTimeBarCard({ allTimeHabits, t }: { allTimeHabits: TimeHabit[]; t:
 
   const segments = useMemo(() => {
     return allTimeHabits.map((h) => {
-      const log = logs.find((l) => l.habitId === h.id && l.date === today);
+      const log = logs.find((l) => l.habitId === h.id && l.date === selectedDate);
       return {
         id: h.id,
         name: h.name,
@@ -1066,7 +1065,7 @@ function DailyTimeBarCard({ allTimeHabits, t }: { allTimeHabits: TimeHabit[]; t:
         minutes: log?.elapsedMinutes ?? 0,
       };
     }).filter((s) => s.minutes > 0);
-  }, [allTimeHabits, logs, today]);
+  }, [allTimeHabits, logs, selectedDate]);
 
   const totalMinutes = useMemo(() => segments.reduce((sum, s) => sum + s.minutes, 0), [segments]);
   const cappedTotal = Math.min(TOTAL_DAY_MINUTES, totalMinutes);
@@ -1117,12 +1116,7 @@ function DailyTimeBarCard({ allTimeHabits, t }: { allTimeHabits: TimeHabit[]; t:
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
           />
         </View>
-        {cappedTotal > 0 && (
-          <View style={dBarStyles.infoRow}>
-            <Text style={[dBarStyles.pctText, { color: t.tLabel }]}>{totalPct}%</Text>
-            <Text style={[dBarStyles.sleptText, { color: t.t3 }]}>{fmt(cappedTotal)} · {fmt(remaining)} kaldı</Text>
-          </View>
-        )}
+        {/* infoRow kaldırıldı (başlıkta zaten özet var) */}
 
         {/* Legend */}
         {segments.length > 0 ? (
@@ -1291,7 +1285,7 @@ const secStyles = StyleSheet.create({
 // ─── Haftalık nokta satırı (kart içi) ────────────────────────────────────────
 const DAY_SHORT = ['Pt', 'Sa', 'Ça', 'Pe', 'Cu', 'Ct', 'Pz'];
 
-function WeekDotRow({ logs }: { logs: { dateStr: string; status?: string }[] }) {
+function WeekDotRow({ logs, selectedDate }: { logs: { dateStr: string; status?: string }[]; selectedDate: string }) {
   const weekDays = getWeekDays();
   const COLORS_DOT = ['#ec4899', '#f97316', '#f59e0b', '#a855f7', '#8b5cf6', '#6366f1'];
 
@@ -1307,6 +1301,7 @@ function WeekDotRow({ logs }: { logs: { dateStr: string; status?: string }[] }) 
               dotRowStyles.dot,
               filled ? { backgroundColor: dotColor, borderColor: dotColor } : {},
             ]} />
+            {dateStr === selectedDate && <View style={dotRowStyles.activeIndicator} />}
           </View>
         );
       })}
@@ -1323,10 +1318,22 @@ const dotRowStyles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: 'rgba(255,255,255,0.15)',
   },
+  activeIndicator: {
+    position: 'absolute',
+    bottom: -6,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#fff',
+    shadowColor: '#fff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+  },
 });
 
 // ─── Featured Habit Cards ─────────────────────────────────────────────────────
-function ActiveHabitCard({ habit, onPress, t }: { habit: DoneHabit; onPress: () => void; t: ThemeTokens }) {
+function ActiveHabitCard({ habit, selectedDate, onPress, t }: { habit: DoneHabit; selectedDate: string; onPress: () => void; t: ThemeTokens }) {
   const i18n = useTranslation();
   const allLogs = useHabitStore((state) => state.logs);
   const streak = useStreak(habit.id, 'done');
@@ -1356,7 +1363,7 @@ function ActiveHabitCard({ habit, onPress, t }: { habit: DoneHabit; onPress: () 
         <View style={darkCardStyles.nameCol}>
           <Text style={[darkCardStyles.name, { color: t.t1 }]}>{habit.name}</Text>
           <Text style={[darkCardStyles.sub, { color: t.t2 }]}>{i18n.daily} · {currentStreak > 0 ? `🔥 ${currentStreak}. ${i18n.dayUnit}` : i18n.startStreak}</Text>
-          <WeekDotRow logs={weekLogs} />
+          <WeekDotRow logs={weekLogs} selectedDate={selectedDate} />
         </View>
         <View style={darkCardStyles.rightCol}>
           <Text style={[darkCardStyles.bigNum, { color: t.t1 }]}>{currentStreak}<Text style={[darkCardStyles.unit, { color: t.t2 }]}> {i18n.dayUnit}</Text></Text>
@@ -1367,23 +1374,21 @@ function ActiveHabitCard({ habit, onPress, t }: { habit: DoneHabit; onPress: () 
   );
 }
 
-function TimeHabitFeaturedCard({ habit, onPress, t }: { habit: TimeHabit; onPress: () => void; t: ThemeTokens }) {
+function TimeHabitFeaturedCard({ habit, selectedDate, onPress, t }: { habit: TimeHabit; selectedDate: string; onPress: () => void; t: ThemeTokens }) {
   const i18n = useTranslation();
   const allLogs = useHabitStore((state) => state.logs);
   const streak = useStreak(habit.id, 'time');
   const logs = useMemo(() => allLogs.filter((l) => l.habitId === habit.id), [allLogs, habit.id]);
   const weekDays = getWeekDays();
 
-  const weekMins = useMemo(() => {
-    return weekDays.reduce((sum, d) => {
-      const log = logs.find((l) => l.date === d.dateStr);
-      return sum + (log?.elapsedMinutes ?? 0);
-    }, 0);
-  }, [logs, weekDays]);
+  const dayMins = useMemo(() => {
+    const log = logs.find((l) => l.date === selectedDate);
+    return log?.elapsedMinutes ?? 0;
+  }, [logs, selectedDate]);
 
   const weekLogs = weekDays.map((d) => {
     const log = logs.find((l) => l.date === d.dateStr);
-    const completed = log && (log.elapsedMinutes ?? 0) >= habit.goalMinutes;
+    const completed = log?.status === 'done' || (log && log.elapsedMinutes !== undefined && log.elapsedMinutes > 0);
     return { dateStr: d.dateStr, status: completed ? 'done' : undefined };
   });
 
@@ -1403,19 +1408,19 @@ function TimeHabitFeaturedCard({ habit, onPress, t }: { habit: TimeHabit; onPres
         </View>
         <View style={darkCardStyles.nameCol}>
           <Text style={[darkCardStyles.name, { color: t.t1 }]}>{habit.name}</Text>
-          <Text style={[darkCardStyles.sub, { color: t.t2 }]}>{i18n.weeklyGoal} · {streak.currentStreak > 0 ? `🔥 ${streak.currentStreak} ${i18n.dayUnit}` : formatMinutes(habit.goalMinutes) + '/' + i18n.dayUnit}</Text>
-          <WeekDotRow logs={weekLogs} />
+          <Text style={[darkCardStyles.sub, { color: t.t2 }]}>{streak.currentStreak > 0 ? `🔥 ${streak.currentStreak} ${i18n.dayUnit}` : ''}</Text>
+          <WeekDotRow logs={weekLogs} selectedDate={selectedDate} />
         </View>
         <View style={darkCardStyles.rightCol}>
-          <Text style={[darkCardStyles.bigNum, { color: t.t1 }]}>{weekMins}<Text style={[darkCardStyles.unit, { color: t.t2 }]}> {i18n.minUnit}</Text></Text>
-          <Text style={[darkCardStyles.bigLabel, { color: t.t2 }]}>{i18n.thisWeek}</Text>
+          <Text style={[darkCardStyles.bigNum, { color: t.t1 }]}>{dayMins}<Text style={[darkCardStyles.unit, { color: t.t2 }]}> {i18n.minUnit}</Text></Text>
+          <Text style={[darkCardStyles.bigLabel, { color: t.t2 }]}>{i18n.today}</Text>
         </View>
       </View>
     </TouchableOpacity>
   );
 }
 
-function BadHabitFeaturedCard({ habit, onPress, t }: { habit: BadHabit; onPress: () => void; t: ThemeTokens }) {
+function BadHabitFeaturedCard({ habit, selectedDate, onPress, t }: { habit: BadHabit; selectedDate: string; onPress: () => void; t: ThemeTokens }) {
   const i18n = useTranslation();
   const allLogs = useHabitStore((state) => state.logs);
   const logs = useMemo(() => allLogs.filter((l) => l.habitId === habit.id), [allLogs, habit.id]);
@@ -1470,23 +1475,7 @@ function BadHabitFeaturedCard({ habit, onPress, t }: { habit: BadHabit; onPress:
           <Text style={[darkCardStyles.sub, { color: t.t2 }]}>
             {'Limit '}{habit.limitType === 'count' || (!habit.limitType && habit.limitCount) ? `${habit.limitCount || 0} ${i18n.timesUnit}` : formatMinutes(habit.limitMinutes || 0)}{' · '}{habit.limitPeriod === 'daily' ? i18n.daily : habit.limitPeriod === 'weekly' ? i18n.weekly : i18n.monthly}
           </Text>
-          {/* Bad habit için kırmızı dot row */}
-          <View style={dotRowStyles.row}>
-            {weekDays.map(({ dateStr }, i) => {
-              const log = logs.find((l) => l.date === dateStr);
-              const isBad = log?.status === 'failed';
-              const isGood = log?.status === 'done';
-              return (
-                <View key={dateStr} style={dotRowStyles.col}>
-                  <View style={[
-                    dotRowStyles.dot,
-                    isBad && { backgroundColor: '#ef4444', borderColor: '#f87171' },
-                    isGood && { backgroundColor: '#22c55e', borderColor: '#4ade80' },
-                  ]} />
-                </View>
-              );
-            })}
-          </View>
+          <WeekDotRow logs={weekLogs} selectedDate={selectedDate} />
         </View>
         <View style={darkCardStyles.rightCol}>
           <Text style={[darkCardStyles.bigNum, { color: t.t1 }, exceeded && { color: '#f87171' }]}>
@@ -1537,10 +1526,10 @@ const darkCardStyles = StyleSheet.create({
 });
 
 // ─── Haftalık gün şeridi (cam/liquid efekt) ───────────────────────────────────
-function WeekStrip({ onPress, t }: { onPress: () => void; t: ThemeTokens }) {
+function WeekStrip({ selectedDate, onSelectDate, t }: { selectedDate: string; onSelectDate: (d: string) => void; t: ThemeTokens }) {
   const days = getWeekDays();
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.88} style={stripStyles.touchable}>
+    <View style={stripStyles.touchable}>
       {/* Dış gölge/halo */}
       <View style={stripStyles.glowHalo} />
 
@@ -1556,32 +1545,35 @@ function WeekStrip({ onPress, t }: { onPress: () => void; t: ThemeTokens }) {
         <View style={stripStyles.specular} />
 
         <View style={stripStyles.row}>
-          {days.map(({ label, dayNum, isToday }, i) => (
-            <View key={i} style={stripStyles.col}>
-              <Text style={[stripStyles.letter, isToday ? stripStyles.letterToday : { color: 'rgba(255,255,255,0.38)' }]}>
-                {label}
-              </Text>
-              <View style={[stripStyles.numWrap, isToday ? stripStyles.numWrapToday : stripStyles.numWrapNormal]}>
-                {isToday && (
-                  <>
-                    <LinearGradient
-                      colors={['#a855f7', '#7c3aed']}
-                      style={StyleSheet.absoluteFillObject}
-                      start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }}
-                    />
-                    {/* İç parlaklık (liquid cam efekti) */}
-                    <View style={stripStyles.liquidSheen} />
-                  </>
-                )}
-                <Text style={[stripStyles.num, isToday ? stripStyles.numToday : { color: 'rgba(255,255,255,0.52)' }]}>
-                  {dayNum}
+          {days.map(({ label, dayNum, dateStr }, i) => {
+            const isSelected = dateStr === selectedDate;
+            return (
+              <TouchableOpacity key={i} onPress={() => onSelectDate(dateStr)} style={stripStyles.col}>
+                <Text style={[stripStyles.letter, isSelected ? stripStyles.letterToday : { color: 'rgba(255,255,255,0.38)' }]}>
+                  {label}
                 </Text>
-              </View>
-            </View>
-          ))}
+                <View style={[stripStyles.numWrap, isSelected ? stripStyles.numWrapToday : stripStyles.numWrapNormal]}>
+                  {isSelected && (
+                    <>
+                      <LinearGradient
+                        colors={['#a855f7', '#7c3aed']}
+                        style={StyleSheet.absoluteFillObject}
+                        start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }}
+                      />
+                      {/* İç parlaklık (liquid cam efekti) */}
+                      <View style={stripStyles.liquidSheen} />
+                    </>
+                  )}
+                  <Text style={[stripStyles.num, isSelected ? stripStyles.numToday : { color: 'rgba(255,255,255,0.52)' }]}>
+                    {dayNum}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
-    </TouchableOpacity>
+    </View>
   );
 }
 
@@ -1656,10 +1648,11 @@ export default function HomeScreen() {
   const router = useRouter();
   const t = useAppTheme();
   const i18n = useTranslation();
-  const { habits, setFilter, setScrollToHabitId, getTodayLog, updateLog, setHabits, setLogs } = useHabitStore();
+  const { habits, setFilter, setScrollToHabitId, getTodayLog, updateLog, setHabits, setLogs, logs } = useHabitStore();
   const sleepStreak = useStreak(SLEEP_HABIT_ID, 'time');
   const { user, isGuest } = useAuthStore();
 
+  const [selectedDate, setSelectedDate] = useState(getTodayString());
   const [refreshing, setRefreshing] = useState(false);
 
   // Veritabanından verileri çek
@@ -1719,8 +1712,8 @@ export default function HomeScreen() {
       : [greeting, i18n.welcomeUser, i18n.howAreYou]
   );
 
-  // Uyku saatleri — store'dan bugünkü log okunarak başlatılır
-  const sleepLog = getTodayLog(SLEEP_HABIT_ID);
+  // Uyku saatleri — store'dan seçili tarihteki log okunarak başlatılır
+  const sleepLog = logs.find(l => l.habitId === SLEEP_HABIT_ID && l.date === selectedDate);
   const parsedSleepTimes = useMemo(() => {
     if (sleepLog?.note) {
       try { return JSON.parse(sleepLog.note) as { bedH: number; bedM: number; wakeH: number; wakeM: number }; }
@@ -1739,14 +1732,14 @@ export default function HomeScreen() {
   const [celebStreakCount, setCelebStreakCount] = useState(1);
 
   // Uyku süresi store'a kaydet
-  const saveSleepLog = () => {
+  const saveSleepLog = async () => {
     const totalMins = timeDiff(bedH, bedM, wakeH, wakeM);
-    const today = getTodayString();
+    const dateToSave = selectedDate;
 
-    // Bugün zaten başarılı log var mı? (kutlamayı tekrar gösterme)
+    // Seçili tarihte zaten başarılı log var mı? (kutlamayı tekrar gösterme)
     const wasAlreadyDoneToday = sleepLog?.status === 'done';
 
-    updateLog(SLEEP_HABIT_ID, today, {
+    updateLog(SLEEP_HABIT_ID, dateToSave, {
       elapsedMinutes: totalMins,
       status: totalMins >= 480 ? 'done' : 'failed',
       note: JSON.stringify({ bedH, bedM, wakeH, wakeM }),
@@ -1754,9 +1747,32 @@ export default function HomeScreen() {
 
     // Firestore senkronizasyonu
     if (!isGuest && user?.id) {
+      // Habit'in var olup olmadığını kontrol et
+      const existingHabit = useHabitStore.getState().habits.find(h => h.id === SLEEP_HABIT_ID);
+      if (!existingHabit) {
+        // Yoksa Firebase'e varsayılan zaman alışkanlığı olarak kaydet
+        const newHabit = {
+          name: 'Uyku Takvimi',
+          icon: '🌙',
+          color: '#7C3AED',
+          type: 'duration' as any, // duration olarak kaydedilir, fetch sırasında time'a dönüşür
+          goalMinutes: 480, // 8 saat
+          isArchived: false,
+          sortOrder: 0,
+          userId: user.id,
+          frequency: 'Her gün',
+        };
+        const savedHabit = await createHabitWithId(SLEEP_HABIT_ID, newHabit);
+        if (savedHabit) {
+          // Local store için tipi 'time' olarak düzelt
+          savedHabit.type = 'time';
+          useHabitStore.getState().setHabits([savedHabit, ...useHabitStore.getState().habits]);
+        }
+      }
+
       upsertLog(user.id, {
         habitId: SLEEP_HABIT_ID,
-        date: today,
+        date: dateToSave,
         elapsedMinutes: totalMins,
         status: totalMins >= 480 ? 'done' : 'failed',
         note: JSON.stringify({ bedH, bedM, wakeH, wakeM }),
@@ -1764,7 +1780,7 @@ export default function HomeScreen() {
     }
 
     // Sadece bugün ilk kez başarılıysa kutlama göster
-    if (!wasAlreadyDoneToday && totalMins >= 480) {
+    if (!wasAlreadyDoneToday && totalMins >= 480 && dateToSave === getTodayString()) {
       const updatedLogs = useHabitStore.getState().getLogsForHabit(SLEEP_HABIT_ID);
       const updatedStreak = calculateStreak(updatedLogs, 'time');
       setCelebStreakCount(updatedStreak.currentStreak);
@@ -1784,7 +1800,13 @@ export default function HomeScreen() {
   const doneHabits = useMemo(() => activeHabits.filter((h) => h.type === 'done') as DoneHabit[], [activeHabits]);
   const timeHabits = useMemo(() => activeHabits.filter((h) => h.type === 'time') as TimeHabit[], [activeHabits]);
   // Uyku dahil TÜM zaman alışkanlıkları (günlük bar için)
-  const allTimeHabits = useMemo(() => habits.filter((h) => !h.isArchived && h.type === 'time') as TimeHabit[], [habits]);
+  const allTimeHabits = useMemo(() => {
+    const timeHabits = habits.filter((h) => !h.isArchived && h.type === 'time') as TimeHabit[];
+    if (!timeHabits.some((h) => h.id === SLEEP_HABIT_ID)) {
+      timeHabits.unshift(SLEEP_HABIT);
+    }
+    return timeHabits;
+  }, [habits]);
   const badHabits = useMemo(() => activeHabits.filter((h) => h.type === 'bad') as BadHabit[], [activeHabits]);
 
   const featuredDone = doneHabits[doneIdx % Math.max(1, doneHabits.length)];
@@ -1792,9 +1814,10 @@ export default function HomeScreen() {
   const featuredBad = badHabits[badIdx % Math.max(1, badHabits.length)];
 
   const navigateToHabit = (type: 'done' | 'time' | 'bad', id: string) => {
-    setFilter(type);
-    setScrollToHabitId(id);
-    router.navigate('/(tabs)/habits');
+    router.push({
+      pathname: '/logHabit',
+      params: { habitId: id, type, date: selectedDate }
+    });
   };
 
   const styles = useMemo(() => makeStyles(t), [t]);
@@ -1862,7 +1885,7 @@ export default function HomeScreen() {
           }
         >
           {/* ── Günlük Zaman Barı ── */}
-          <DailyTimeBarCard allTimeHabits={allTimeHabits} t={t} />
+          <DailyTimeBarCard allTimeHabits={allTimeHabits} selectedDate={selectedDate} t={t} />
 
           {/* ── Sleep Schedule ── */}
           <SleepCard
@@ -1887,6 +1910,7 @@ export default function HomeScreen() {
               />
               <ActiveHabitCard
                 habit={featuredDone}
+                selectedDate={selectedDate}
                 onPress={() => navigateToHabit('done', featuredDone.id)}
                 t={t}
               />
@@ -1903,6 +1927,7 @@ export default function HomeScreen() {
               />
               <TimeHabitFeaturedCard
                 habit={featuredTime}
+                selectedDate={selectedDate}
                 onPress={() => navigateToHabit('time', featuredTime.id)}
                 t={t}
               />
@@ -1919,6 +1944,7 @@ export default function HomeScreen() {
               />
               <BadHabitFeaturedCard
                 habit={featuredBad}
+                selectedDate={selectedDate}
                 onPress={() => navigateToHabit('bad', featuredBad.id)}
                 t={t}
               />
@@ -1942,7 +1968,7 @@ export default function HomeScreen() {
         </ScrollView>
 
         {/* ── Haftalık şerit ── */}
-        <WeekStrip onPress={() => router.push('/calendarPage')} t={t} />
+        <WeekStrip selectedDate={selectedDate} onSelectDate={setSelectedDate} t={t} />
       </SafeAreaView>
 
       <SleepConfirmModal

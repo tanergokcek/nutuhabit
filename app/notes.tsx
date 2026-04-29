@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useHabitStore } from '@/src/store/useHabitStore';
+import { HabitIcon } from '@/components/ui/HabitIcon';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface PersonalNote {
@@ -160,7 +161,7 @@ export default function NotesScreen() {
                 <View style={styles.habitNoteInner}>
                   <View style={styles.habitNoteHeader}>
                     <View style={styles.habitBadge}>
-                      <Text style={styles.habitBadgeIcon}>{item.habitIcon}</Text>
+                      <HabitIcon icon={item.habitIcon} size={13} color="#d8b4fe" />
                       <Text style={styles.habitBadgeName} numberOfLines={1}>
                         {item.habitName}
                       </Text>

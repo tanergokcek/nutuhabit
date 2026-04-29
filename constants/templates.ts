@@ -81,4 +81,8 @@ export const HABIT_ICONS = [
   // Lifestyle
   'restaurant-outline', 'cafe-outline', 'home-outline', 'briefcase-outline',
   'wallet-outline', 'people-outline',
+  // Bad Habits
+  'wine-outline', 'beer-outline', 'fast-food-outline', 'logo-no-smoking',
+  'skull-outline', 'tv-outline', 'phone-portrait-outline', 'cash-outline',
+  'warning-outline', 'sad-outline',
 ];

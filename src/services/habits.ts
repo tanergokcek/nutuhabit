@@ -73,6 +73,29 @@ export async function createHabit(habit: Omit<Habit, 'id' | 'createdAt' | 'updat
   }
 }
 
+export async function createHabitWithId(
+  habitId: string,
+  habit: Omit<Habit, 'id' | 'createdAt' | 'updatedAt'>
+): Promise<Habit | null> {
+  try {
+    const habitRef = doc(db, 'habits', habitId);
+    await setDoc(habitRef, {
+      ...habit,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+    return {
+      id: habitId,
+      ...habit,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } as Habit;
+  } catch (error) {
+    console.error("Error creating habit with id:", error);
+    return null;
+  }
+}
+
 export async function updateHabitService(
   habitId: string,
   updates: Partial<Habit>
@@ -124,6 +147,7 @@ export async function fetchLogs(
             date: data.Today,
             userId: data.UserId,
             status: 'done', // default
+            note: data.Note || data.note || undefined,
             createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
             updatedAt: data.updatedAt?.toDate?.()?.toISOString() || new Date().toISOString(),
           } as any;
@@ -166,6 +190,10 @@ export async function upsertLog(
       HabitID: log.habitId,
       UserId: userId,
     };
+
+    if (log.note !== undefined) {
+      data.Note = log.note;
+    }
 
     if (habitType === 'time') {
       collectionName = 'logs_time';
