@@ -2,6 +2,7 @@ import { HabitIcon } from '@/components/ui/HabitIcon';
 import { FONTS } from '@/constants/fonts';
 import { LAYOUT } from '@/constants/layout';
 import { upsertLog } from '@/src/services/habits';
+import { addNote } from '@/src/services/notes';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { useHabitStore } from '@/src/store/useHabitStore';
 import { HabitType, LogStatus } from '@/src/types/habit';
@@ -546,6 +547,18 @@ export default function LogHabitScreen() {
       }
 
       upsertLog(user.id, logData, selectedType);
+
+      // Eğer not varsa Firebase notes koleksiyonuna da kaydet (status: habit)
+      if (noteValue) {
+        addNote(user.id, {
+          text: noteValue,
+          status: 'habit',
+          date: selectedDate,
+          habitId: habit.id,
+          habitName: habit.name,
+          habitIcon: habit.icon,
+        });
+      }
     }
 
     // Zustand güncellemesi senkron — log kaydedildikten hemen sonra streak hesapla

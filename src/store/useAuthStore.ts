@@ -31,7 +31,7 @@ interface AuthState {
   continueAsGuest: () => void;
   signOut: () => void;
   updateUser: (updates: Partial<User>) => void;
-  setUser: (user: User | null, isAuthenticated: boolean) => void;
+  setUser: (user: User | null, isAuthenticated: boolean) => Promise<void>;
   setLoading: (isLoading: boolean) => void;
 }
 
@@ -96,7 +96,30 @@ export const useAuthStore = create<AuthState>()(
           user: state.user ? { ...state.user, ...updates } : null,
         }));
       },
-      setUser: (user, isAuthenticated) => set({ user, isAuthenticated, isGuest: false }),
+      setUser: async (user, isAuthenticated) => {
+        if (user && isAuthenticated) {
+          // Giriş yapılıyorsa — önce eski kullanıcının verilerini temizle
+          const { useHabitStore } = await import('./useHabitStore');
+          const { useTodoStore } = await import('./useTodoStore');
+          const { useTimerStore } = await import('./useTimerStore');
+          const { useLanguageStore } = await import('./useLanguageStore');
+          const { useThemeStore } = await import('./useThemeStore');
+
+          useHabitStore.getState().resetHabits();
+          useTodoStore.getState().resetTodos();
+          useTimerStore.getState().resetTimerStore();
+          useLanguageStore.getState().resetLanguage();
+          useThemeStore.getState().resetTheme();
+
+          // AsyncStorage'daki eski persist verilerini sil
+          await AsyncStorage.multiRemove([
+            'nutuhabit-auth-storage',
+            'nutuhabit-language-storage',
+            'nutuhabit-theme-storage',
+          ]);
+        }
+        set({ user, isAuthenticated, isGuest: false });
+      },
       setLoading: (isLoading) => set({ isLoading }),
     }),
     {

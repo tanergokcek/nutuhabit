@@ -1,26 +1,16 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, StatusBar,
   TouchableOpacity, TextInput, Modal, Pressable,
+  ActivityIndicator, RefreshControl, Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { useHabitStore } from '@/src/store/useHabitStore';
 import { HabitIcon } from '@/components/ui/HabitIcon';
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-interface PersonalNote {
-  id: string;
-  dateSort: string;    // YYYY-MM-DD
-  dateDisplay: string; // "17 MAR 2026"
-  text: string;
-}
-
-type DisplayItem =
-  | { kind: 'personal'; id: string; dateSort: string; dateDisplay: string; text: string }
-  | { kind: 'habit'; logId: string; dateSort: string; dateDisplay: string; note: string; habitName: string; habitIcon: string };
+import { useAuthStore } from '@/src/store/useAuthStore';
+import { addNote, fetchNotes, deleteNote, FirebaseNote } from '@/src/services/notes';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const TR_MONTHS = ['OCA', 'ŞUB', 'MAR', 'NİS', 'MAY', 'HAZ', 'TEM', 'AĞU', 'EYL', 'EKİ', 'KAS', 'ARA'];
@@ -38,65 +28,86 @@ function todaySort(): string {
 // ── Screen ────────────────────────────────────────────────────────────────────
 export default function NotesScreen() {
   const router = useRouter();
-  const { habits, logs } = useHabitStore();
+  const { user, isGuest } = useAuthStore();
 
-  const [personalNotes, setPersonalNotes] = useState<PersonalNote[]>([]);
+  const [notes, setNotes] = useState<FirebaseNote[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [addVisible, setAddVisible] = useState(false);
   const [newText, setNewText] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'habit' | 'personal'>('all');
 
-  // Habit log notları (log.note alanı dolu ve JSON veri olmayan)
-  const habitNotes = useMemo((): DisplayItem[] => {
-    const items: DisplayItem[] = [];
-    for (const log of logs) {
-      if (!log.note) continue;
-      // JSON veri (uyku saati gibi sistem verileri) gösterilmez
-      const trimmed = log.note.trim();
-      if (trimmed.startsWith('{') || trimmed.startsWith('[')) continue;
-      const habit = habits.find((h) => h.id === log.habitId);
-      if (!habit) continue;
-      items.push({
-        kind: 'habit',
-        logId: log.id,
-        dateSort: log.date,
-        dateDisplay: toDisplay(log.date),
-        note: log.note,
-        habitName: habit.name,
-        habitIcon: habit.icon,
-      });
+  // Firebase'den notları çek
+  const loadNotes = useCallback(async () => {
+    if (isGuest || !user?.id) {
+      setLoading(false);
+      return;
     }
-    return items;
-  }, [logs, habits]);
+    try {
+      const fetched = await fetchNotes(user.id);
+      setNotes(fetched);
+    } catch (error) {
+      console.error('Error loading notes:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [user?.id, isGuest]);
 
-  // Tüm öğeleri birleştir, tarihe göre sırala (yeniden eskiye)
-  const allItems = useMemo((): DisplayItem[] => {
-    const personal: DisplayItem[] = personalNotes.map((n) => ({
-      kind: 'personal',
-      id: n.id,
-      dateSort: n.dateSort,
-      dateDisplay: n.dateDisplay,
-      text: n.text,
-    }));
-    const merged = [...personal, ...habitNotes].sort((a, b) =>
-      b.dateSort.localeCompare(a.dateSort)
-    );
-    if (filterType === 'habit') return merged.filter((i) => i.kind === 'habit');
-    if (filterType === 'personal') return merged.filter((i) => i.kind === 'personal');
-    return merged;
-  }, [personalNotes, habitNotes, filterType]);
+  useEffect(() => {
+    loadNotes();
+  }, [loadNotes]);
 
-  const addNote = () => {
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    loadNotes();
+  }, [loadNotes]);
+
+  // Filtrelenmiş notlar
+  const filteredNotes = useMemo(() => {
+    if (filterType === 'all') return notes;
+    return notes.filter((n) => n.status === filterType);
+  }, [notes, filterType]);
+
+  // Kişisel not ekle
+  const handleAddNote = async () => {
     if (!newText.trim()) return;
+    if (isGuest || !user?.id) {
+      Alert.alert('Giriş Gerekli', 'Not eklemek için giriş yapmalısın.');
+      return;
+    }
+
     const today = todaySort();
-    const note: PersonalNote = {
-      id: Date.now().toString(),
-      dateSort: today,
-      dateDisplay: toDisplay(today),
+    const result = await addNote(user.id, {
       text: newText.trim(),
-    };
-    setPersonalNotes((prev) => [note, ...prev]);
+      status: 'personal',
+      date: today,
+    });
+
+    if (result) {
+      setNotes((prev) => [result, ...prev]);
+    }
     setNewText('');
     setAddVisible(false);
+  };
+
+  // Not sil
+  const handleDelete = (noteId: string) => {
+    Alert.alert(
+      'Notu Sil',
+      'Bu notu silmek istediğine emin misin?',
+      [
+        { text: 'İptal', style: 'cancel' },
+        {
+          text: 'Sil',
+          style: 'destructive',
+          onPress: async () => {
+            await deleteNote(noteId);
+            setNotes((prev) => prev.filter((n) => n.id !== noteId));
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -141,53 +152,80 @@ export default function NotesScreen() {
           })}
         </View>
 
-        <ScrollView
-          style={styles.scroll}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-        >
-          {allItems.length === 0 && (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyIcon}>📝</Text>
-              <Text style={styles.emptyText}>Henüz not yok.{'\n'}Alışkanlık eklerken veya + butonuyla not oluşturabilirsin.</Text>
-            </View>
-          )}
+        {loading ? (
+          <View style={styles.loadingState}>
+            <ActivityIndicator size="large" color="#a855f7" />
+            <Text style={styles.loadingText}>Notlar yükleniyor...</Text>
+          </View>
+        ) : (
+          <ScrollView
+            style={styles.scroll}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor="#a855f7"
+                colors={['#a855f7']}
+              />
+            }
+          >
+            {filteredNotes.length === 0 && (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyIcon}>📝</Text>
+                <Text style={styles.emptyText}>
+                  Henüz not yok.{'\n'}Alışkanlık eklerken veya + butonuyla not oluşturabilirsin.
+                </Text>
+              </View>
+            )}
 
-          {allItems.map((item) =>
-            item.kind === 'habit' ? (
-              // ── Alışkanlık notu ────────────────────────────────────────────
-              <View key={`habit-${item.logId}`} style={styles.habitNoteCard}>
-                <View style={styles.habitAccentBar} />
-                <View style={styles.habitNoteInner}>
-                  <View style={styles.habitNoteHeader}>
-                    <View style={styles.habitBadge}>
-                      <HabitIcon icon={item.habitIcon} size={13} color="#d8b4fe" />
-                      <Text style={styles.habitBadgeName} numberOfLines={1}>
-                        {item.habitName}
-                      </Text>
+            {filteredNotes.map((item) =>
+              item.status === 'habit' ? (
+                // ── Alışkanlık notu ────────────────────────────────────────────
+                <Pressable
+                  key={item.id}
+                  style={styles.habitNoteCard}
+                  onLongPress={() => handleDelete(item.id)}
+                >
+                  <View style={styles.habitAccentBar} />
+                  <View style={styles.habitNoteInner}>
+                    <View style={styles.habitNoteHeader}>
+                      <View style={styles.habitBadge}>
+                        {item.habitIcon && (
+                          <HabitIcon icon={item.habitIcon} size={13} color="#d8b4fe" />
+                        )}
+                        <Text style={styles.habitBadgeName} numberOfLines={1}>
+                          {item.habitName || 'Alışkanlık'}
+                        </Text>
+                      </View>
+                      <Text style={styles.habitNoteDate}>{toDisplay(item.date)}</Text>
                     </View>
-                    <Text style={styles.habitNoteDate}>{item.dateDisplay}</Text>
+                    <Text style={styles.habitNoteText}>{item.text}</Text>
                   </View>
-                  <Text style={styles.habitNoteText}>{item.note}</Text>
-                </View>
-              </View>
-            ) : (
-              // ── Kişisel not ────────────────────────────────────────────────
-              <View key={`personal-${item.id}`} style={styles.personalNoteCard}>
-                <View style={styles.personalNoteHeader}>
-                  <View style={styles.personalBadge}>
-                    <Ionicons name="person" size={11} color="#93c5fd" />
-                    <Text style={styles.personalBadgeText}>Kişisel</Text>
+                </Pressable>
+              ) : (
+                // ── Kişisel not ────────────────────────────────────────────────
+                <Pressable
+                  key={item.id}
+                  style={styles.personalNoteCard}
+                  onLongPress={() => handleDelete(item.id)}
+                >
+                  <View style={styles.personalNoteHeader}>
+                    <View style={styles.personalBadge}>
+                      <Ionicons name="person" size={11} color="#93c5fd" />
+                      <Text style={styles.personalBadgeText}>Kişisel</Text>
+                    </View>
+                    <Text style={styles.personalNoteDate}>{toDisplay(item.date)}</Text>
                   </View>
-                  <Text style={styles.personalNoteDate}>{item.dateDisplay}</Text>
-                </View>
-                <Text style={styles.personalNoteText}>{item.text}</Text>
-              </View>
-            )
-          )}
+                  <Text style={styles.personalNoteText}>{item.text}</Text>
+                </Pressable>
+              )
+            )}
 
-          <View style={{ height: 100 }} />
-        </ScrollView>
+            <View style={{ height: 100 }} />
+          </ScrollView>
+        )}
 
         {/* FAB */}
         <TouchableOpacity
@@ -229,7 +267,7 @@ export default function NotesScreen() {
               textAlignVertical="top"
               autoFocus
             />
-            <TouchableOpacity style={styles.saveBtn} onPress={addNote} activeOpacity={0.85}>
+            <TouchableOpacity style={styles.saveBtn} onPress={handleAddNote} activeOpacity={0.85}>
               <LinearGradient colors={['#3b82f6', '#2563eb']} style={styles.saveBtnGrad}>
                 <Text style={styles.saveBtnText}>Kaydet</Text>
               </LinearGradient>
@@ -276,6 +314,10 @@ const styles = StyleSheet.create({
   },
   legendDot: { width: 7, height: 7, borderRadius: 4 },
   legendText: { fontSize: 11, color: 'rgba(255,255,255,0.40)', fontWeight: '600' },
+
+  // Loading state
+  loadingState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
+  loadingText: { fontSize: 14, color: 'rgba(255,255,255,0.35)' },
 
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: 16, paddingTop: 4 },
@@ -324,7 +366,6 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     maxWidth: '65%',
   },
-  habitBadgeIcon: { fontSize: 13 },
   habitBadgeName: {
     fontSize: 11, fontWeight: '700',
     color: '#d8b4fe', flex: 1,

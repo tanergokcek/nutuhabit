@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,12 +10,14 @@ import {
   Modal,
   Pressable,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTodoStore, Todo, TodoPriority } from '@/src/store/useTodoStore';
+import { useAuthStore } from '@/src/store/useAuthStore';
 
 // ── Sabitler ──────────────────────────────────────────────────────────────────
 const PRIORITY_CONFIG: Record<TodoPriority, { label: string; color: string; bg: string }> = {
@@ -187,7 +189,16 @@ type Filter = 'all' | 'active' | 'done';
 
 export default function TodosScreen() {
   const router = useRouter();
-  const { todos, addTodo, toggleTodo, deleteTodo, updateTodo, clearCompleted } = useTodoStore();
+  const { todos, addTodo, toggleTodo, deleteTodo, updateTodo, clearCompleted, loadTodos, isLoading } = useTodoStore();
+  const user = useAuthStore((s) => s.user);
+  const userId = user?.id ?? '';
+
+  // Firebase'den todoları yükle
+  useEffect(() => {
+    if (userId) {
+      loadTodos(userId);
+    }
+  }, [userId]);
 
   const [filter, setFilter] = useState<Filter>('all');
   const [modalVisible, setModalVisible] = useState(false);
@@ -221,7 +232,7 @@ export default function TodosScreen() {
     if (editTarget) {
       updateTodo(editTarget.id, text, priority);
     } else {
-      addTodo(text, priority);
+      addTodo(userId, text, priority);
     }
     setModalVisible(false);
   };
@@ -237,7 +248,7 @@ export default function TodosScreen() {
     if (doneCount === 0) return;
     Alert.alert('Tamamlananları Temizle', `${doneCount} tamamlanmış görev silinecek.`, [
       { text: 'İptal', style: 'cancel' },
-      { text: 'Temizle', style: 'destructive', onPress: clearCompleted },
+      { text: 'Temizle', style: 'destructive', onPress: () => clearCompleted(userId) },
     ]);
   };
 
@@ -296,7 +307,12 @@ export default function TodosScreen() {
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
         >
-          {filtered.length === 0 ? (
+          {isLoading ? (
+            <View style={styles.emptyWrap}>
+              <ActivityIndicator size="large" color="rgba(192,132,252,0.85)" />
+              <Text style={styles.emptyText}>Görevler yükleniyor…</Text>
+            </View>
+          ) : filtered.length === 0 ? (
             <View style={styles.emptyWrap}>
               <Ionicons name="clipboard-outline" size={52} color="rgba(255,255,255,0.15)" />
               <Text style={styles.emptyText}>
