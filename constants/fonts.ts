@@ -10,9 +10,9 @@ import { fontSizes, fontWeights } from './typography';
 
 export const FONTS = {
   family: {
-    serif: 'InriaSerif',
-    serifBold: 'InriaSerif-Bold',
-    serifItalic: 'InriaSerif-Italic',
+    serif: 'InriaSerif_400Regular',
+    serifBold: 'InriaSerif_700Bold',
+    serifItalic: 'InriaSerif_400Regular_Italic',
     systemSerif: 'Georgia',
     systemSans: 'System',
   },

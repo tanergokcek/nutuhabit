@@ -20,15 +20,30 @@
 
 import { Platform, TextStyle } from 'react-native';
 
+// Custom font mapping for Inria Serif
+const getFontFamily = (weight?: TextStyle['fontWeight']) => {
+  switch (weight) {
+    case '300':
+      return 'InriaSerif_300Light';
+    case '600':
+    case '700':
+    case 'bold':
+      return 'InriaSerif_700Bold';
+    case '400':
+    default:
+      return 'InriaSerif_400Regular';
+  }
+};
+
 // ─── System Font ──────────────────────────────────────────────────────────────
 // Omitting fontFamily (undefined) triggers React Native's system font:
 //   iOS     → SF Pro  (Text/Display auto-selected by size threshold at 20pt)
 //   Android → Roboto
 // Keep Platform.select for explicit intent + easy future override.
 const SYSTEM_FONT = Platform.select<string | undefined>({
-  ios: undefined,
-  android: undefined,
-  default: undefined,
+  ios: 'InriaSerif',
+  android: 'InriaSerif',
+  default: 'InriaSerif',
 });
 
 // ─── Font Weights ─────────────────────────────────────────────────────────────
@@ -122,7 +137,7 @@ const make = (
   weight: TextStyle['fontWeight'],
   extra?: Partial<TextStyle>,
 ): TextStyle => ({
-  fontFamily:    SYSTEM_FONT,
+  fontFamily:    getFontFamily(weight),
   fontSize:      fontSizes[key],
   lineHeight:    lineHeights[key],
   letterSpacing: letterSpacings[key],

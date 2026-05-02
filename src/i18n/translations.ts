@@ -58,6 +58,7 @@ export interface Translations {
   weeklyGoalReached: string;
   clean: string;
   exceededTimes: (n: number) => string;
+  limitExceeded: string;
   timesUnit: string;
   minUnit: string;
   exceedLabel: string;
@@ -167,6 +168,150 @@ export interface Translations {
   completedDaysLabel: string;
   totalExcLabel: string;
   cleanDaysLabel: string;
+  guestUser: string;
+  guestSubtitle: string;
+  loginRegister: string;
+  sleepHint: string;
+  timeHint: string;
+  weekDays: string[];
+  tabHome: string;
+  tabHabits: string;
+  tabAdd: string;
+  tabCharts: string;
+  tabMenu: string;
+  menuCalendar: string;
+  menuNotes: string;
+  menuTodos: string;
+  menuSettings: string;
+  menuAICoach: string;
+  aiCoachPro: string;
+  aiCoachUnlock: string;
+  aiCoachFeature1: string;
+  aiCoachFeature2: string;
+  aiCoachFeature3: string;
+  aiCoachFeature4: string;
+  aiCoachPremiumBtn: string;
+  aiCoachNotNow: string;
+  aiCoachAnalyzeBtn: string;
+  aiCoachAnalyzing: string;
+  aiCoachChatPlaceholder: string;
+  aiCoachTyping: string;
+  aiCoachSubtitle: string;
+  aiCoachAnalysisTitle: string;
+  aiCoachStartHint: string;
+  aiCoachPaymentSuccess: string;
+  aiCoachPaymentSuccessMsg: string;
+  aiCoachDataMissing: string;
+  aiCoachDataMissingMsg: string;
+  periodLabel: string;
+  timesLabel: string;
+  logHabitTitle: string;
+  habitSelectPlaceholder: string;
+  habitPickerTitle: string;
+  notesLabel: string;
+  notesPlaceholder: string;
+  dateToday: string;
+  hourUnit: string;
+  minuteUnit: string;
+  streakDayLabel: string;
+  isFirstDayTitle: string;
+  greatJobTitle: string;
+  firstDaySub: string;
+  keepGoingSub: string;
+  continueBtn: string;
+  noHabitOfType: string;
+  addNewHabitLink: string;
+  statusDidnt: string;
+  statusExcused: string;
+  statusDid: string;
+  weekDaysFull: string[];
+  sleepHabitHint: string;
+  thisWeek: string;
+  totalLabel: string;
+  sleepStreakTitle: string;
+  sleepStreakSub: string;
+  todayLabel: string;
+  thisMonth: string;
+  sleepHabitTitle: string;
+  loginRequired: string;
+  loginToNote: string;
+  deleteNoteTitle: string;
+  deleteNoteConfirm: string;
+  notesTitle: string;
+  allNotes: string;
+  habitNoteFilter: string;
+  personalNoteFilter: string;
+  loadingNotes: string;
+  noNotesYet: string;
+  habitDefaultName: string;
+  personalLabel: string;
+  personalNoteTitle: string;
+  notePlaceholder: string;
+  habitNotFound: string;
+  backBtn: string;
+  totalDaysLabel: string;
+  longestStreakLabel: string;
+  completionLabel: string;
+  goalMet: string;
+  goalLabel: string;
+  noDataToday: string;
+  sleepDetailHint: string;
+  dailyGoalLabel: string;
+  completed: string;
+  hasData: string;
+  recordedToday: string;
+  timeDetailHint: string;
+  badHabitStreakSub: string;
+  currentStreakLabel: string;
+  dailyLimitLabel: string;
+  errorTitle: string;
+  habitUpdateError: string;
+  deleteHabitFullConfirm: string;
+  editHabitTitle: string;
+  modeCantChange: string;
+  changeIcon: string;
+  habitGoalMinutesLabel: string;
+  habitLimitCountLabel: string;
+  habitLimitMinutesLabel: string;
+  priorityHigh: string;
+  priorityNormal: string;
+  priorityLow: string;
+  editTask: string;
+  newTask: string;
+  taskPlaceholder: string;
+  updateBtn: string;
+  deleteTaskTitle: string;
+  deleteTaskConfirm: string;
+  clearDoneTitle: string;
+  clearDoneConfirm: string;
+  clearLabel: string;
+  todoStatus: string;
+  activeFilter: string;
+  doneFilter: string;
+  loadingTasks: string;
+  noDoneTasks: string;
+  noActiveTasks: string;
+  emptyTodoList: string;
+  addTask: string;
+  hourUnitShort: string;
+  minUnitShort: string;
+  monthNames: string[];
+  dayNamesShort: string[];
+  calendarBack: string;
+  habitsTracked: string;
+  statusDone: string;
+  statusMissed: string;
+  dailyMorning: string;
+  aiCoachFreeMonths: string;
+  monthlyLabel: string;
+  yearlyLabel: string;
+  turkeyLabel: string;
+  internationalLabel: string;
+  successLabel: string;
+  averageLabel: string;
+  limitExceededLabel: string;
+  reportIntro: string;
+  elapsedTimeLabel: string;
 }
 
 export const tr: Translations = {
@@ -222,6 +367,7 @@ export const tr: Translations = {
   weeklyGoalReached: '% haftalık hedefe ulaşıldı',
   clean: 'Temiz',
   exceededTimes: (n) => `${n} kez aşıldı`,
+  limitExceeded: 'LİMİT AŞILDI',
   timesUnit: 'kez',
   minUnit: 'dk',
   exceedLabel: 'aşım',
@@ -325,6 +471,184 @@ export const tr: Translations = {
   completedDaysLabel: 'Tamamlanan',
   totalExcLabel: 'Toplam Aşım',
   cleanDaysLabel: 'Temiz Gün',
+  guestUser: 'Misafir Kullanıcı',
+  guestSubtitle: 'Veriler yalnızca bu cihazda saklanır',
+  loginRegister: 'Giriş Yap / Kayıt Ol',
+  sleepHint: 'İlk uyku vaktin ne zaman? Girmek için dokun',
+  timeHint: 'Gününüzün neye ne kadar zamanınızın gittiğini buradan göreceksiniz',
+  dailyTime: 'Günlük Zaman',
+  weekDays: ['Pt', 'Sa', 'Ça', 'Pe', 'Cu', 'Ct', 'Pz'],
+  tabHome: 'Ana Sayfa',
+  tabHabits: 'Alışkanlıklar',
+  tabAdd: 'Ekle',
+  tabCharts: 'Grafik',
+  tabMenu: 'Menü',
+  menuCalendar: 'Takvim',
+  menuNotes: 'Notlar',
+  menuTodos: 'Yapılacaklar',
+  menuSettings: 'Ayarlar',
+  menuAICoach: 'AI Koçunuz',
+  aiCoachPro: 'NutuHabit Pro',
+  aiCoachUnlock: 'Tüm özellikleri açın',
+  aiCoachFeature1: 'AI Coach — Kişisel alışkanlık danışmanı',
+  aiCoachFeature2: 'Gelişmiş istatistikler ve analizler',
+  aiCoachFeature3: 'Sınırsız hatırlatıcı',
+  aiCoachFeature4: 'iCloud senkronizasyonu',
+  aiCoachPremiumBtn: "Premium'a Geç",
+  aiCoachNotNow: 'Şimdi değil',
+  aiCoachAnalyzeBtn: 'Verilerimi Analiz Et',
+  aiCoachAnalyzing: 'Analiz Ediliyor...',
+  aiCoachChatPlaceholder: 'Bir soru sor...',
+  aiCoachTyping: 'Yazıyor...',
+  aiCoachSubtitle: 'Sizin için buradayım, istediğinizi sorabilirsiniz.',
+  aiCoachAnalysisTitle: 'Genel Analiz',
+  aiCoachStartHint: 'Alışkanlıklarınızı analiz edebilir veya bana aklınızdaki soruları sorabilirsiniz.',
+  aiCoachPaymentSuccess: 'Ödeme Başarılı',
+  aiCoachPaymentSuccessMsg: 'NutuHabit Pro dünyasına hoş geldin! Ödemen başarıyla alındı ve tüm özellikler sınırsız olarak açıldı.',
+  aiCoachDataMissing: 'Veri Eksik',
+  aiCoachDataMissingMsg: 'Henüz hiçbir alışkanlık kaydı girmediniz. Analiz yapabilmem için birkaç gün kayıt tutmalısınız.',
+  newHabitTitle: 'Yeni Alışkanlık',
+  habitTypeSelect: 'Alışkanlık Türü Seç',
+  habitNameLabel: 'Alışkanlık Adı:',
+  habitNamePlaceholder: 'Örn: Sabah meditasyonu',
+  detailLabel: 'Detay',
+  frequencyLabel: 'Sıklık',
+  limitLabel: 'Limit',
+  reminderLabel: 'Hatırlatıcı',
+  reminderOn: 'Açık',
+  reminderOff: 'Kapalı',
+  colorLabel: 'Renk',
+  iconLabel: 'İkon Seç',
+  cancelBtn: 'İptal',
+  saveBtn: 'Kaydet',
+  savingBtn: 'Kaydediliyor...',
+  typeDone: 'YAPILDI',
+  typeTime: 'SÜRE',
+  typeBad: 'KÖTÜ ALIŞKANLIK',
+  freqEveryday: 'Her gün',
+  freqWeekdays: 'Hafta içi',
+  freqWeekends: 'Hafta sonu',
+  freqCustom: 'Özel',
+  periodDayLabel: 'Gün',
+  periodWeekLabel: 'Hafta',
+  periodMonthLabel: 'Ay',
+  stepperTimes: 'kez',
+  customDayTitle: 'Günleri seç',
+  customDayHint: 'En az bir gün seçin',
+  reminderToggleLabel: 'Hatırlatıcıyı Aç',
+  reminderTimePickerTitle: 'Hatırlatıcı Saati',
+  reminderTimeSelectLabel: 'Saat Seç',
+  loginRequiredMsg: 'Alışkanlık oluşturmak için giriş yapmalısınız.',
+  dbSaveError: 'Alışkanlık veri tabanına kaydedilemedi.',
+  periodLabel: 'Periyot',
+  timesLabel: 'Kaç kez',
+  logHabitTitle: 'KAYIT',
+  habitSelectPlaceholder: 'Alışkanlık seç...',
+  habitPickerTitle: 'Alışkanlık Seç',
+  notesLabel: 'Notlar',
+  notesPlaceholder: 'Bugün nasıl geçti?...',
+  dateToday: 'Bugün',
+  hourUnit: 'saat',
+  minuteUnit: 'dakika',
+  streakDayLabel: '. gün',
+  isFirstDayTitle: 'İlk gün! 🎉',
+  greatJobTitle: 'Harika gidiyorsun!',
+  firstDaySub: 'Harika başlangıç, devam et!',
+  keepGoingSub: 'Serini kırmıyorsun, süper! 💪',
+  continueBtn: 'Devam Et',
+  noHabitOfType: 'Bu tipte alışkanlık yok.',
+  addNewHabitLink: '+ Yeni alışkanlık ekle',
+  statusDidnt: 'Yapmadım.',
+  statusExcused: 'Mazeretliyim.',
+  statusDid: 'Yaptım.',
+  weekDaysFull: ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'],
+  sleepHabitHint: 'İlk alışkanlığınız için uyku vaktinizi girin',
+  thisWeek: 'BU HAFTA',
+  totalLabel: 'toplam',
+  sleepStreakTitle: 'Uyku Serisi',
+  sleepStreakSub: 'Uyku rutinine sadık kalmaya devam et 💪',
+  todayLabel: 'bugün',
+  thisMonth: 'bu ay',
+  sleepHabitTitle: 'Uyku Takvimi',
+  loginRequired: 'Giriş Gerekli',
+  loginToNote: 'Not eklemek için giriş yapmalısın.',
+  deleteNoteTitle: 'Notu Sil',
+  deleteNoteConfirm: 'Bu notu silmek istediğine emin misin?',
+  notesTitle: 'Notlar',
+  allNotes: 'Tümü',
+  habitNoteFilter: 'Alışkanlık notu',
+  personalNoteFilter: 'Kişisel not',
+  loadingNotes: 'Notlar yükleniyor...',
+  noNotesYet: 'Henüz not yok. Alışkanlık eklerken veya + butonuyla not oluşturabilirsin.',
+  habitDefaultName: 'Alışkanlık',
+  personalLabel: 'Kişisel',
+  personalNoteTitle: 'Kişisel Not',
+  notePlaceholder: 'Bugün ne hissettirdi?',
+  habitNotFound: 'Alışkanlık bulunamadı',
+  backBtn: 'Geri Dön',
+  totalDaysLabel: 'Toplam Gün',
+  longestStreakLabel: 'En Uzun Seri',
+  completionLabel: 'Tamamlama',
+  goalMet: 'Hedefe ulaşıldı',
+  goalLabel: 'Hedef',
+  noDataToday: 'Bugün kayıt yok',
+  sleepDetailHint: 'Ana sayfadaki uyku kartından saat girerek kaydet',
+  dailyGoalLabel: 'Günlük Hedef',
+  completed: 'Tamamlandı',
+  hasData: 'Kayıt var',
+  recordedToday: 'Bugün %s kaydedildi',
+  timeDetailHint: 'Ekle butonundan süre kaydet',
+  badHabitStreakSub: 'Limiti aşmadan geçirilen günler',
+  currentStreakLabel: 'Güncel Seri',
+  dailyLimitLabel: 'Günlük Limit',
+  errorTitle: 'Hata',
+  habitUpdateError: 'Alışkanlık güncellenemedi.',
+  deleteHabitFullConfirm: '"%s" ve tüm kayıtları silinecek. Bu işlem geri alınamaz.',
+  editHabitTitle: 'Alışkanlığı Düzenle',
+  modeCantChange: 'modu (değiştirilemez)',
+  changeIcon: 'İkonu değiştir',
+  habitGoalMinutesLabel: 'Hedef Süre (dakika)',
+  habitLimitCountLabel: 'Limit (kez)',
+  habitLimitMinutesLabel: 'Günlük Limit (dakika)',
+  priorityHigh: 'Yüksek',
+  priorityNormal: 'Normal',
+  priorityLow: 'Düşük',
+  editTask: 'Görevi Düzenle',
+  newTask: 'Yeni Görev',
+  taskPlaceholder: 'Ne yapılacak?',
+  updateBtn: 'Güncelle',
+  deleteTaskTitle: 'Görevi Sil',
+  deleteTaskConfirm: 'Bu görevi silmek istiyor musun?',
+  clearDoneTitle: 'Tamamlananları Temizle',
+  clearDoneConfirm: '%n tamamlanmış görev silinecek.',
+  clearLabel: 'Temizle',
+  todoStatus: '%a bekliyor · %d tamamlandı',
+  activeFilter: 'Bekleyenler',
+  doneFilter: 'Tamamlananlar',
+  loadingTasks: 'Görevler yükleniyor…',
+  noDoneTasks: 'Henüz tamamlanan görev yok',
+  noActiveTasks: 'Bekleyen görev yok, harika!',
+  emptyTodoList: 'Listen boş, yeni görev ekle',
+  addTask: 'Ekle',
+  hourUnitShort: 'sa',
+  minUnitShort: 'dk',
+  monthNames: ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'],
+  dayNamesShort: ['PZ', 'PT', 'SA', 'ÇA', 'PE', 'CU', 'CT'],
+  calendarBack: 'Geri',
+  habitsTracked: 'alışkanlık takip edildi',
+  statusDone: 'Tamamlandı',
+  statusMissed: 'Kaçırıldı',
+  dailyMorning: 'Günlük · Sabah',
+  aiCoachFreeMonths: '2 ay ücretsiz',
+  monthlyLabel: 'Aylık',
+  yearlyLabel: 'Yıllık',
+  turkeyLabel: 'Türkiye',
+  internationalLabel: 'Uluslararası',
+  successLabel: 'Başarı',
+  averageLabel: 'Ortalama',
+  limitExceededLabel: 'Limit aşımı',
+  reportIntro: 'Verilerini derinlemesine inceledim. İşte senin için hazırladığım gelişim raporu:\n\n',
+  elapsedTimeLabel: 'Geçen süre',
 };
 
 export const en: Translations = {
@@ -380,6 +704,7 @@ export const en: Translations = {
   weeklyGoalReached: '% of weekly goal',
   clean: 'Clean',
   exceededTimes: (n) => `exceeded ${n}×`,
+  limitExceeded: 'LIMIT EXCEEDED',
   timesUnit: 'times',
   minUnit: 'min',
   exceedLabel: 'exceeded',
@@ -483,4 +808,182 @@ export const en: Translations = {
   completedDaysLabel: 'Completed',
   totalExcLabel: 'Total Exceeded',
   cleanDaysLabel: 'Clean Days',
+  guestUser: 'Guest User',
+  guestSubtitle: 'Data is stored only on this device',
+  loginRegister: 'Login / Register',
+  sleepHint: 'When is your first sleep time? Tap to enter',
+  timeHint: 'You will see how your day is spent here',
+  dailyTime: 'Daily Time',
+  weekDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+  tabHome: 'Home',
+  tabHabits: 'Habits',
+  tabAdd: 'Add',
+  tabCharts: 'Charts',
+  tabMenu: 'Menu',
+  menuCalendar: 'Calendar',
+  menuNotes: 'Notes',
+  menuTodos: 'Todos',
+  menuSettings: 'Settings',
+  menuAICoach: 'AI Coach',
+  aiCoachPro: 'NutuHabit Pro',
+  aiCoachUnlock: 'Unlock all features',
+  aiCoachFeature1: 'AI Coach — Personal habit consultant',
+  aiCoachFeature2: 'Advanced statistics and analysis',
+  aiCoachFeature3: 'Unlimited reminders',
+  aiCoachFeature4: 'iCloud synchronization',
+  aiCoachPremiumBtn: 'Go Premium',
+  aiCoachNotNow: 'Not now',
+  aiCoachAnalyzeBtn: 'Analyze My Data',
+  aiCoachAnalyzing: 'Analyzing...',
+  aiCoachChatPlaceholder: 'Ask a question...',
+  aiCoachTyping: 'Typing...',
+  aiCoachSubtitle: "I'm here for you, feel free to ask anything.",
+  aiCoachAnalysisTitle: 'General Analysis',
+  aiCoachStartHint: 'You can analyze your habits or ask me any questions on your mind.',
+  aiCoachPaymentSuccess: 'Payment Successful',
+  aiCoachPaymentSuccessMsg: 'Welcome to NutuHabit Pro! Your payment was successful and all features are now unlocked.',
+  aiCoachDataMissing: 'Data Missing',
+  aiCoachDataMissingMsg: 'You haven’t entered any habit records yet. You need to keep logs for a few days for me to analyze.',
+  newHabitTitle: 'New Habit',
+  habitTypeSelect: 'Select Habit Type',
+  habitNameLabel: 'Habit Name:',
+  habitNamePlaceholder: 'e.g. Morning meditation',
+  detailLabel: 'Detail',
+  frequencyLabel: 'Frequency',
+  limitLabel: 'Limit',
+  reminderLabel: 'Reminder',
+  reminderOn: 'On',
+  reminderOff: 'Off',
+  colorLabel: 'Color',
+  iconLabel: 'Select Icon',
+  cancelBtn: 'Cancel',
+  saveBtn: 'Save',
+  savingBtn: 'Saving...',
+  typeDone: 'DONE',
+  typeTime: 'TIME',
+  typeBad: 'BAD HABIT',
+  freqEveryday: 'Every day',
+  freqWeekdays: 'Weekdays',
+  freqWeekends: 'Weekends',
+  freqCustom: 'Custom',
+  periodDayLabel: 'Day',
+  periodWeekLabel: 'Week',
+  periodMonthLabel: 'Month',
+  stepperTimes: 'times',
+  customDayTitle: 'Select days',
+  customDayHint: 'Select at least one day',
+  reminderToggleLabel: 'Enable Reminder',
+  reminderTimePickerTitle: 'Reminder Time',
+  reminderTimeSelectLabel: 'Select Time',
+  loginRequiredMsg: 'You must log in to create a habit.',
+  dbSaveError: 'Failed to save habit to database.',
+  periodLabel: 'Period',
+  timesLabel: 'How many times',
+  logHabitTitle: 'LOG',
+  habitSelectPlaceholder: 'Select habit...',
+  habitPickerTitle: 'Select Habit',
+  notesLabel: 'Notes',
+  notesPlaceholder: 'How was your day?...',
+  dateToday: 'Today',
+  hourUnit: 'hours',
+  minuteUnit: 'minutes',
+  streakDayLabel: '. day',
+  isFirstDayTitle: 'First day! 🎉',
+  greatJobTitle: 'Great job!',
+  firstDaySub: 'Awesome start, keep going!',
+  keepGoingSub: "You're keeping the streak, super! 💪",
+  continueBtn: 'Continue',
+  noHabitOfType: 'No habits of this type.',
+  addNewHabitLink: '+ Add new habit',
+  statusDidnt: "I didn't.",
+  statusExcused: "I'm excused.",
+  statusDid: 'I did.',
+  weekDaysFull: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+  sleepHabitHint: 'Enter your sleep time for your first habit',
+  thisWeek: 'THIS WEEK',
+  totalLabel: 'total',
+  sleepStreakTitle: 'Sleep Streak',
+  sleepStreakSub: 'Keep sticking to your sleep routine 💪',
+  todayLabel: 'today',
+  thisMonth: 'this month',
+  sleepHabitTitle: 'Sleep Schedule',
+  loginRequired: 'Login Required',
+  loginToNote: 'You must log in to add a note.',
+  deleteNoteTitle: 'Delete Note',
+  deleteNoteConfirm: 'Are you sure you want to delete this note?',
+  notesTitle: 'Notes',
+  allNotes: 'All',
+  habitNoteFilter: 'Habit note',
+  personalNoteFilter: 'Personal note',
+  loadingNotes: 'Loading notes...',
+  noNotesYet: 'No notes yet. You can create notes while logging habits or by using the + button.',
+  habitDefaultName: 'Habit',
+  personalLabel: 'Personal',
+  personalNoteTitle: 'Personal Note',
+  notePlaceholder: 'How did it feel today?',
+  habitNotFound: 'Habit not found',
+  backBtn: 'Go Back',
+  totalDaysLabel: 'Total Days',
+  longestStreakLabel: 'Longest Streak',
+  completionLabel: 'Completion',
+  goalMet: 'Goal met',
+  goalLabel: 'Goal',
+  noDataToday: 'No data for today',
+  sleepDetailHint: 'Record sleep by entering hours on the home card',
+  dailyGoalLabel: 'Daily Goal',
+  completed: 'Completed',
+  hasData: 'Logged',
+  recordedToday: 'Today %s recorded',
+  timeDetailHint: 'Record time from the add button',
+  badHabitStreakSub: 'Days passed without exceeding the limit',
+  currentStreakLabel: 'Current Streak',
+  dailyLimitLabel: 'Daily Limit',
+  errorTitle: 'Error',
+  habitUpdateError: 'Failed to update habit.',
+  deleteHabitFullConfirm: '"%s" and all its logs will be deleted. This action cannot be undone.',
+  editHabitTitle: 'Edit Habit',
+  modeCantChange: 'mode (cannot be changed)',
+  changeIcon: 'Change icon',
+  habitGoalMinutesLabel: 'Goal Duration (minutes)',
+  habitLimitCountLabel: 'Limit (times)',
+  habitLimitMinutesLabel: 'Daily Limit (minutes)',
+  priorityHigh: 'High',
+  priorityNormal: 'Normal',
+  priorityLow: 'Low',
+  editTask: 'Edit Task',
+  newTask: 'New Task',
+  taskPlaceholder: 'What needs to be done?',
+  updateBtn: 'Update',
+  deleteTaskTitle: 'Delete Task',
+  deleteTaskConfirm: 'Do you want to delete this task?',
+  clearDoneTitle: 'Clear Completed',
+  clearDoneConfirm: '%n completed tasks will be deleted.',
+  clearLabel: 'Clear',
+  todoStatus: '%a pending · %d completed',
+  activeFilter: 'Pending',
+  doneFilter: 'Completed',
+  loadingTasks: 'Loading tasks...',
+  noDoneTasks: 'No completed tasks yet',
+  noActiveTasks: 'No pending tasks, great!',
+  emptyTodoList: 'Your list is empty, add a new task',
+  addTask: 'Add',
+  hourUnitShort: 'h',
+  minUnitShort: 'm',
+  monthNames: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+  dayNamesShort: ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'],
+  calendarBack: 'Back',
+  habitsTracked: 'habits tracked',
+  statusDone: 'Done',
+  statusMissed: 'Missed',
+  dailyMorning: 'Daily · Morning',
+  aiCoachFreeMonths: '2 months free',
+  monthlyLabel: 'Monthly',
+  yearlyLabel: 'Yearly',
+  turkeyLabel: 'Turkey',
+  internationalLabel: 'International',
+  successLabel: 'Success',
+  averageLabel: 'Average',
+  limitExceededLabel: 'Limit exceeded',
+  reportIntro: 'I have analyzed your data in depth. Here is the progress report I prepared for you:\n\n',
+  elapsedTimeLabel: 'Elapsed time',
 };

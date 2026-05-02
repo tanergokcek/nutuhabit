@@ -86,7 +86,8 @@ function buildPoints(
   type: HabitTypeTab,
   selectedId: string | null,
   habits: Habit[],
-  logs: HabitLog[]
+  logs: HabitLog[],
+  i18n: any
 ): { label: string; value: number }[] {
   const active = selectedId
     ? habits.filter((h) => h.id === selectedId)
@@ -94,11 +95,11 @@ function buildPoints(
   const today = new Date();
 
   if (period === 'D') {
-    const abbr = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
+    const abbr = i18n.weekDays;
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date(today);
       d.setDate(d.getDate() - (6 - i));
-      return { label: abbr[d.getDay()], value: computeValue(type, active, logs, [toDs(d)]) };
+      return { label: abbr[d.getDay() === 0 ? 6 : d.getDay() - 1], value: computeValue(type, active, logs, [toDs(d)]) };
     });
   }
   if (period === 'W') {
@@ -109,7 +110,7 @@ function buildPoints(
         dt.setDate(dt.getDate() - (3 - wi) * 7 - d);
         dates.push(toDs(dt));
       }
-      return { label: `H${wi + 1}`, value: computeValue(type, active, logs, dates) };
+      return { label: `W${wi + 1}`, value: computeValue(type, active, logs, dates) };
     });
   }
   const count = period === 'M' ? 6 : 12;
@@ -119,7 +120,7 @@ function buildPoints(
     const dates = Array.from({ length: dim }, (_, i) =>
       `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(i + 1).padStart(2, '0')}`
     );
-    const label = d.toLocaleDateString('tr-TR', { month: 'short' });
+    const label = d.toLocaleDateString(i18n.language === 'tr' ? 'tr-TR' : 'en-US', { month: 'short' });
     return { label, value: computeValue(type, active, logs, dates) };
   });
 }
@@ -323,8 +324,8 @@ export default function GraphPage() {
   );
 
   const chartPoints = useMemo(
-    () => buildPoints(period, habitType, activeId, habits, logs),
-    [period, habitType, activeId, habits, logs]
+    () => buildPoints(period, habitType, activeId, habits, logs, i18n),
+    [period, habitType, activeId, habits, logs, i18n]
   );
 
   const maxVal = useMemo(() => {
@@ -348,10 +349,11 @@ export default function GraphPage() {
     const nonZero = values.filter((v) => v > 0).length;
     if (habitType === 'time') {
       const avg = Math.round(total / Math.max(chartPoints.length, 1));
+      const unit = i18n.minUnitShort;
       return {
-        primary: `${total} dk`,
+        primary: `${total} ${unit}`,
         primaryLabel: i18n.totalMinsLabel,
-        secondary: `${avg} dk`,
+        secondary: `${avg} ${unit}`,
         secondaryLabel: i18n.avgPerDayLabel,
       };
     }
@@ -462,8 +464,10 @@ export default function GraphPage() {
   const barEmptyFill = t.rowBg;
 
   const breakdownBarColor = habitType === 'done' ? '#22c55e' : habitType === 'time' ? '#a855f7' : '#f97316';
-  const breakdownValFormat = (v: number) =>
-    habitType === 'done' ? `${v}%` : habitType === 'time' ? `${v} dk` : `${v}`;
+  const breakdownValFormat = (v: number) => {
+    const unit = i18n.minUnitShort;
+    return habitType === 'done' ? `${v}%` : habitType === 'time' ? `${v} ${unit}` : `${v}`;
+  };
 
   return (
     <View style={styles.container}>
@@ -760,10 +764,11 @@ export default function GraphPage() {
             {pieData.length === 0 ? (
               <Text style={[styles.noDataText, { color: t.t3 }]}>{i18n.notEnoughData}</Text>
             ) : (() => {
-              const pieTotal = pieData.reduce((s, d) => s + d.value, 0);
-              const centerNum = habitType === 'time' ? `${pieTotal} dk` : `${pieTotal}`;
-              const centerFill = t.dark ? 'rgba(255,255,255,0.88)' : 'rgba(76,29,149,0.85)';
-              const centerSub  = t.dark ? 'rgba(255,255,255,0.38)' : 'rgba(76,29,149,0.50)';
+            const pieTotal = pieData.reduce((s, d) => s + d.value, 0);
+            const unit = i18n.minUnitShort;
+            const centerNum = habitType === 'time' ? `${pieTotal} ${unit}` : `${pieTotal}`;
+            const centerFill = t.dark ? 'rgba(255,255,255,0.88)' : 'rgba(76,29,149,0.85)';
+            const centerSub  = t.dark ? 'rgba(255,255,255,0.38)' : 'rgba(76,29,149,0.50)';
               return (
                 <View style={styles.pieContent}>
                   <Svg width={140} height={140}>
@@ -784,7 +789,7 @@ export default function GraphPage() {
                       {centerNum}
                     </SvgText>
                     <SvgText x={70} y={80} textAnchor="middle" fontSize={8} fill={centerSub}>
-                      toplam
+                      {i18n.totalLabel}
                     </SvgText>
                   </Svg>
 

@@ -159,3 +159,22 @@ export async function clearCompletedFromFirebase(userId: string): Promise<void> 
     console.error('Error clearing completed todos:', error);
   }
 }
+
+/**
+ * Kullanıcının tüm todolarını sil
+ */
+export async function resetAllTodos(userId: string): Promise<void> {
+  try {
+    const q = query(
+      collection(db, 'todos'),
+      where('userId', '==', userId)
+    );
+    const querySnapshot = await getDocs(q);
+    const deletePromises = querySnapshot.docs.map((docSnap) =>
+      deleteDoc(docSnap.ref)
+    );
+    await Promise.all(deletePromises);
+  } catch (error) {
+    console.error('Error resetting all todos:', error);
+  }
+}

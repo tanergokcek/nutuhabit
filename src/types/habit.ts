@@ -13,6 +13,8 @@ export interface HabitBase {
   isArchived: boolean;
   sortOrder: number;
   userId: string;
+  reminderEnabled?: boolean;
+  reminderTime?: string; // "HH:mm"
 }
 
 export interface DoneHabit extends HabitBase {

@@ -35,9 +35,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // ─── Yardımcılar ──────────────────────────────────────────────────────────────
-const WEEK_LETTERS = ['Pt', 'Sa', 'Ça', 'Pe', 'Cu', 'Ct', 'Pz'];
-
-function getWeekDays() {
+function getWeekDays(labels: string[]) {
   const today = new Date();
   // Haftanın başı: Pazartesi
   const dayOfWeek = today.getDay(); // 0=Sun
@@ -50,7 +48,7 @@ function getWeekDays() {
     const day = String(d.getDate()).padStart(2, '0');
     return {
       dateStr: `${y}-${m}-${day}`,
-      label: WEEK_LETTERS[i],
+      label: labels[i],
       dayNum: d.getDate(),
       isToday: d.toDateString() === today.toDateString(),
     };
@@ -181,7 +179,7 @@ function SleepConfirmModal({ visible, bedH, bedM, wakeH, wakeM, onConfirm, onClo
   const totalHours = totalMins / 60;
   const dH = Math.floor(totalMins / 60);
   const dM = totalMins % 60;
-  const durationStr = language === 'en'
+  const durationStr = i18n.language === 'en'
     ? (dM > 0 ? `${dH}h ${dM}m` : `${dH}h`)
     : (dM > 0 ? `${dH} saat ${dM} dakika` : `${dH} saat`);
   const quality = totalHours >= 7.5
@@ -299,16 +297,11 @@ const scStyles = StyleSheet.create({
 });
 
 // ─── Streak Kutlama Modal'ı ────────────────────────────────────────────────────
-interface StreakCelebrationProps {
-  visible: boolean;
-  streakCount: number;
-  onClose: () => void;
-}
-
-const WEEK_DAY_NAMES = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
-const WEEK_SHORT = ['Pt', 'Sa', 'Ça', 'Pe', 'Cu', 'Ct', 'Pz'];
-
 function StreakCelebrationModal({ visible, streakCount, onClose }: StreakCelebrationProps) {
+  const i18n = useTranslation();
+  const WEEK_DAY_NAMES = i18n.weekDaysFull;
+  const WEEK_SHORT = i18n.weekDays;
+
   const todayName = WEEK_DAY_NAMES[new Date().getDay()];
   const todayWeekIdx = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1;
   const streakStartIdx = todayWeekIdx - (streakCount - 1);
@@ -365,7 +358,7 @@ function StreakCelebrationModal({ visible, streakCount, onClose }: StreakCelebra
           <View style={celebStyles.iconBox}>
             <Text style={{ fontSize: 16 }}>🌙</Text>
           </View>
-          <Text style={celebStyles.title}>Uyku Serisi</Text>
+          <Text style={celebStyles.title}>{i18n.sleepStreakTitle}</Text>
           <TouchableOpacity onPress={onClose} style={celebStyles.closeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Ionicons name="close" size={16} color="rgba(255,255,255,0.45)" />
           </TouchableOpacity>
@@ -375,7 +368,7 @@ function StreakCelebrationModal({ visible, streakCount, onClose }: StreakCelebra
         <Animated.View style={[celebStyles.bigPill, { transform: [{ scale: pillScale }] }]}>
           <Text style={celebStyles.bigPillFire}>🔥</Text>
           <Text style={celebStyles.bigPillNum}>{streakCount}</Text>
-          <Text style={celebStyles.bigPillLabel}>. gün</Text>
+          <Text style={celebStyles.bigPillLabel}>{i18n.streakDayLabel}</Text>
         </Animated.View>
 
         {/* Günün adı */}
@@ -413,8 +406,8 @@ function StreakCelebrationModal({ visible, streakCount, onClose }: StreakCelebra
 
         {/* Alt mesaj */}
         <Animated.View style={[celebStyles.msgWrap, { opacity: contentO }]}>
-          <Text style={celebStyles.msgTitle}>Harika gidiyorsun!</Text>
-          <Text style={celebStyles.msgSub}>Uyku rutinine sadık kalmaya devam et 💪</Text>
+          <Text style={celebStyles.msgTitle}>{i18n.greatJobTitle}</Text>
+          <Text style={celebStyles.msgSub}>{i18n.sleepStreakSub}</Text>
         </Animated.View>
 
         {/* Kapat butonu */}
@@ -426,7 +419,7 @@ function StreakCelebrationModal({ visible, streakCount, onClose }: StreakCelebra
           >
             <LinearGradient colors={['#9333ea', '#6d28d9']} style={StyleSheet.absoluteFillObject} />
             <Ionicons name="checkmark" size={16} color="#fff" />
-            <Text style={celebStyles.btnText}>Devam Et</Text>
+            <Text style={celebStyles.btnText}>{i18n.continueBtn}</Text>
           </TouchableOpacity>
         </Animated.View>
 
@@ -602,9 +595,9 @@ function SleepCard({ bedH, bedM, wakeH, wakeM, streak, hasData, onSave, t }: Sle
   const totalHours = totalMins / 60;
   const durationH = Math.floor(totalMins / 60);
   const durationM = totalMins % 60;
-  const durationStr = language === 'en'
-    ? (durationM > 0 ? `${durationH}h ${durationM}m` : `${durationH}h`)
-    : (durationM > 0 ? `${durationH}sa ${durationM}dk` : `${durationH} saat`);
+  const durationStr = (durationM > 0)
+    ? `${durationH}${i18n.hourUnitShort} ${durationM}${i18n.minUnitShort}`
+    : `${durationH} ${i18n.hourUnit}`;
 
   const quality = totalHours >= 7.5
     ? { label: i18n.sleepGood, color: '#34d399', bg: 'rgba(52,211,153,0.12)', border: 'rgba(52,211,153,0.40)' }
@@ -745,7 +738,7 @@ function SleepCard({ bedH, bedM, wakeH, wakeM, streak, hasData, onSave, t }: Sle
             </View>
             <View style={[sleepStyles.timeBlock, { alignItems: 'flex-end' }]}>
               <Text style={[sleepStyles.durationValue, { color: hasData ? t.t1 : t.t3 }]}>
-                {hasData ? durationStr : (language === 'en' ? '0h' : '0 saat')}
+                {hasData ? durationStr : `0 ${i18n.hourUnit}`}
               </Text>
               <Text style={[sleepStyles.timeLabel, { color: t.t3 }]}>{i18n.durationLabel}</Text>
             </View>
@@ -823,7 +816,7 @@ function SleepCard({ bedH, bedM, wakeH, wakeM, streak, hasData, onSave, t }: Sle
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
             />
             <Ionicons name="checkmark" size={15} color="#fff" />
-            <Text style={sleepStyles.saveBtnText}>Kaydet</Text>
+            <Text style={sleepStyles.saveBtnText}>{i18n.save}</Text>
           </TouchableOpacity>
         </Animated.View>
         {/* İlk uyku vakti yönlendirme — veri yokken ve dropdown kapalıyken */}
@@ -832,7 +825,7 @@ function SleepCard({ bedH, bedM, wakeH, wakeM, streak, hasData, onSave, t }: Sle
             <Animated.View style={{ transform: [{ translateY: bounceAnim }] }}>
               <Ionicons name="arrow-up" size={13} color="#A78BFA" />
             </Animated.View>
-            <Text style={sleepStyles.promptText}>İlk uyku vaktin ne zaman? Girmek için dokun</Text>
+            <Text style={sleepStyles.promptText}>{i18n.sleepHint}</Text>
             <Animated.View style={{ transform: [{ translateY: bounceAnim }] }}>
               <Ionicons name="arrow-up" size={13} color="#A78BFA" />
             </Animated.View>
@@ -1027,6 +1020,7 @@ const sleepStyles = StyleSheet.create({
 const TOTAL_DAY_MINUTES = 24 * 60; // 1440
 
 function DailyTimeBarCard({ allTimeHabits, selectedDate, t }: { allTimeHabits: TimeHabit[]; selectedDate: string; t: ThemeTokens }) {
+  const i18n = useTranslation();
   const logs = useHabitStore((state) => state.logs);
   const { language } = useLanguageStore();
 
@@ -1075,8 +1069,7 @@ function DailyTimeBarCard({ allTimeHabits, selectedDate, t }: { allTimeHabits: T
   const fmt = (mins: number) => {
     const h = Math.floor(mins / 60);
     const m = mins % 60;
-    if (language === 'en') return h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
-    return h > 0 ? (m > 0 ? `${h}sa ${m}dk` : `${h}sa`) : `${m}dk`;
+    return h > 0 ? (m > 0 ? `${h}${i18n.hourUnitShort} ${m}${i18n.minUnitShort}` : `${h}${i18n.hourUnitShort}`) : `${m}${i18n.minUnitShort}`;
   };
 
   return (
@@ -1094,11 +1087,11 @@ function DailyTimeBarCard({ allTimeHabits, selectedDate, t }: { allTimeHabits: T
         <View style={dBarStyles.iconBox}>
           <Text style={{ fontSize: 13 }}>⏰</Text>
         </View>
-        <Text style={[dBarStyles.title, { color: t.t1 }]}>Günlük Zaman</Text>
+        <Text style={[dBarStyles.title, { color: t.t1 }]}>{i18n.dailyTime}</Text>
         <View style={dBarStyles.pctBadge}>
           <Text style={dBarStyles.pctBadgeText}>{totalPct}%</Text>
         </View>
-        <Text style={[dBarStyles.subtitleText, { color: t.t3 }]}>{fmt(cappedTotal)} / 24sa</Text>
+        <Text style={[dBarStyles.subtitleText, { color: t.t3 }]}>{fmt(cappedTotal)} / 24{i18n.hourUnitShort}</Text>
         <Ionicons
           name={collapsed ? 'chevron-down' : 'chevron-up'}
           size={14}
@@ -1137,7 +1130,7 @@ function DailyTimeBarCard({ allTimeHabits, selectedDate, t }: { allTimeHabits: T
               <Ionicons name="arrow-up" size={13} color="#A78BFA" />
             </Animated.View>
             <Text style={dBarStyles.emptyPromptText}>
-              Günününüz neye ne kadar zamanınızın gittiğini buradan göreceksiniz
+              {i18n.timeHint}
             </Text>
             <Animated.View style={{ transform: [{ translateY: bounceAnim }] }}>
               <Ionicons name="arrow-up" size={13} color="#A78BFA" />
@@ -1282,11 +1275,9 @@ const secStyles = StyleSheet.create({
   changeText: { ...textStyles.caption2Medium, letterSpacing: 0.8 },                    // 11pt
 });
 
-// ─── Haftalık nokta satırı (kart içi) ────────────────────────────────────────
-const DAY_SHORT = ['Pt', 'Sa', 'Ça', 'Pe', 'Cu', 'Ct', 'Pz'];
-
 function WeekDotRow({ logs, selectedDate }: { logs: { dateStr: string; status?: string }[]; selectedDate: string }) {
-  const weekDays = getWeekDays();
+  const i18n = useTranslation();
+  const weekDays = getWeekDays(i18n.weekDays);
   const COLORS_DOT = ['#ec4899', '#f97316', '#f59e0b', '#a855f7', '#8b5cf6', '#6366f1'];
 
   return (
@@ -1338,7 +1329,7 @@ function ActiveHabitCard({ habit, selectedDate, onPress, t }: { habit: DoneHabit
   const allLogs = useHabitStore((state) => state.logs);
   const streak = useStreak(habit.id, 'done');
   const logs = useMemo(() => allLogs.filter((l) => l.habitId === habit.id), [allLogs, habit.id]);
-  const weekDays = getWeekDays();
+  const weekDays = getWeekDays(i18n.weekDays);
   const weekLogs = weekDays.map((d) => ({
     dateStr: d.dateStr,
     status: logs.find((l) => l.date === d.dateStr)?.status,
@@ -1379,7 +1370,7 @@ function TimeHabitFeaturedCard({ habit, selectedDate, onPress, t }: { habit: Tim
   const allLogs = useHabitStore((state) => state.logs);
   const streak = useStreak(habit.id, 'time');
   const logs = useMemo(() => allLogs.filter((l) => l.habitId === habit.id), [allLogs, habit.id]);
-  const weekDays = getWeekDays();
+  const weekDays = getWeekDays(i18n.weekDays);
 
   const dayMins = useMemo(() => {
     const log = logs.find((l) => l.date === selectedDate);
@@ -1424,7 +1415,7 @@ function BadHabitFeaturedCard({ habit, selectedDate, onPress, t }: { habit: BadH
   const i18n = useTranslation();
   const allLogs = useHabitStore((state) => state.logs);
   const logs = useMemo(() => allLogs.filter((l) => l.habitId === habit.id), [allLogs, habit.id]);
-  const weekDays = getWeekDays();
+  const weekDays = getWeekDays(i18n.weekDays);
 
   const weekFailed = useMemo(() => {
     return weekDays.filter((d) => {
@@ -1473,7 +1464,7 @@ function BadHabitFeaturedCard({ habit, selectedDate, onPress, t }: { habit: BadH
         <View style={darkCardStyles.nameCol}>
           <Text style={[darkCardStyles.name, { color: t.t1 }]}>{habit.name}</Text>
           <Text style={[darkCardStyles.sub, { color: t.t2 }]}>
-            {'Limit '}{habit.limitType === 'count' || (!habit.limitType && habit.limitCount) ? `${habit.limitCount || 0} ${i18n.timesUnit}` : formatMinutes(habit.limitMinutes || 0)}{' · '}{habit.limitPeriod === 'daily' ? i18n.daily : habit.limitPeriod === 'weekly' ? i18n.weekly : i18n.monthly}
+            {i18n.limitLabel + ' '}{habit.limitType === 'count' || (!habit.limitType && habit.limitCount) ? `${habit.limitCount || 0} ${i18n.timesUnit}` : formatMinutes(habit.limitMinutes || 0)}{' · '}{habit.limitPeriod === 'daily' ? i18n.daily : habit.limitPeriod === 'weekly' ? i18n.weekly : i18n.monthly}
           </Text>
           <WeekDotRow logs={weekLogs} selectedDate={selectedDate} />
         </View>
@@ -1485,9 +1476,9 @@ function BadHabitFeaturedCard({ habit, selectedDate, onPress, t }: { habit: BadH
             {exceeded
               ? i18n.exceeded
               : habit.limitPeriod === 'daily'
-                ? 'bugün'
+                ? i18n.todayLabel
                 : habit.limitPeriod === 'monthly'
-                  ? 'bu ay'
+                  ? i18n.thisMonth
                   : i18n.thisWeek}
           </Text>
         </View>
@@ -1527,7 +1518,8 @@ const darkCardStyles = StyleSheet.create({
 
 // ─── Haftalık gün şeridi (cam/liquid efekt) ───────────────────────────────────
 function WeekStrip({ selectedDate, onSelectDate, t }: { selectedDate: string; onSelectDate: (d: string) => void; t: ThemeTokens }) {
-  const days = getWeekDays();
+  const i18n = useTranslation();
+  const days = getWeekDays(i18n.weekDays);
   return (
     <View style={stripStyles.touchable}>
       {/* Dış gölge/halo */}
@@ -1752,7 +1744,7 @@ export default function HomeScreen() {
       if (!existingHabit) {
         // Yoksa Firebase'e varsayılan zaman alışkanlığı olarak kaydet
         const newHabit = {
-          name: 'Uyku Takvimi',
+          name: i18n.sleepHabitTitle,
           icon: '🌙',
           color: '#7C3AED',
           type: 'duration' as any, // duration olarak kaydedilir, fetch sırasında time'a dönüşür
@@ -1760,7 +1752,7 @@ export default function HomeScreen() {
           isArchived: false,
           sortOrder: 0,
           userId: user.id,
-          frequency: 'Her gün',
+          frequency: i18n.freqEveryday,
         };
         const savedHabit = await createHabitWithId(SLEEP_HABIT_ID, newHabit);
         if (savedHabit) {

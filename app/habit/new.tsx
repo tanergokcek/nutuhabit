@@ -10,6 +10,7 @@ import {
   Platform,
   Alert,
   StatusBar,
+  Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,8 +18,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useHabitStore } from '@/src/store/useHabitStore';
 import { useAuthStore } from '@/src/store/useAuthStore';
-import { db } from '@/src/firebaseConfig';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { createHabit } from '@/src/services/habits';
+import { scheduleHabitReminder } from '@/src/services/notifications';
+import { serverTimestamp } from 'firebase/firestore';
 import { HabitIcon } from '@/components/ui/HabitIcon';
 import { HabitType, DoneHabit, TimeHabit, BadHabit, BadLimitPeriod } from '@/src/types/habit';
 import { validateHabitName, validateGoalMinutes } from '@/src/utils/validators';
@@ -26,34 +28,25 @@ import { HABIT_ICONS } from '@/constants/templates';
 import { LAYOUT } from '@/constants/layout';
 import { FONTS } from '@/constants/fonts';
 import { useAppTheme } from '@/src/hooks/useAppTheme';
+import { useTranslation } from '@/src/hooks/useTranslation';
 
-// Frekans seçenekleri
-const FREQUENCY_OPTIONS = ['Her gün', 'Hafta içi', 'Hafta sonu', 'Özel'];
-
-// Renk seçenekleri (time alışkanlıkları için)
 const COLOR_OPTIONS = [
-  '#7C3AED', // violet
-  '#3B82F6', // blue
-  '#06B6D4', // cyan
-  '#10B981', // emerald
-  '#F59E0B', // amber
-  '#F97316', // orange
-  '#EF4444', // red
-  '#EC4899', // pink
-];
-
-const DAY_LABELS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
-
-const PERIOD_OPTIONS: { key: BadLimitPeriod; label: string }[] = [
-  { key: 'daily', label: 'Gün' },
-  { key: 'weekly', label: 'Hafta' },
-  { key: 'monthly', label: 'Ay' },
+  '#7C3AED', '#3B82F6', '#06B6D4', '#10B981', '#F59E0B', '#F97316', '#EF4444', '#EC4899',
 ];
 
 export default function NewHabitScreen() {
   const router = useRouter();
   const t = useAppTheme();
+  const i18n = useTranslation();
   const addHabit = useHabitStore((state) => state.addHabit);
+
+  const FREQUENCY_OPTIONS = [i18n.freqEveryday, i18n.freqWeekdays, i18n.freqWeekends, i18n.freqCustom];
+  const DAY_LABELS = i18n.weekDays; // use common week days
+  const PERIOD_OPTIONS: { key: BadLimitPeriod; label: string }[] = [
+    { key: 'daily', label: i18n.periodDayLabel },
+    { key: 'weekly', label: i18n.periodWeekLabel },
+    { key: 'monthly', label: i18n.periodMonthLabel },
+  ];
 
   // ── Form state (tüm mantık korundu) ─────────────────────────────────────
   const [name, setName] = useState('');
@@ -62,7 +55,7 @@ export default function NewHabitScreen() {
   const [goalMinutes, setGoalMinutes] = useState('30');
   const [limitPeriod, setLimitPeriod] = useState<BadLimitPeriod>('daily');
   const [limitCount, setLimitCount] = useState(1);
-  const [frequency, setFrequency] = useState('Her gün');
+  const [frequency, setFrequency] = useState(i18n.freqEveryday);
   const [customDays, setCustomDays] = useState<boolean[]>(Array(7).fill(false));
 
   const toggleDay = (idx: number) =>
@@ -71,6 +64,11 @@ export default function NewHabitScreen() {
   const [nameError, setNameError] = useState<string | null>(null);
   const [goalError, setGoalError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Reminder state
+  const [reminderEnabled, setReminderEnabled] = useState(false);
+  const [reminderTime, setReminderTime] = useState('08:00');
+  const [showTimePicker, setShowTimePicker] = useState(false);
 
   // Expandable panel state
   const [openPanel, setOpenPanel] = useState<'frequency' | 'reminder' | 'icon' | 'period' | null>(null);
@@ -85,7 +83,7 @@ export default function NewHabitScreen() {
 
     const { user, isGuest } = useAuthStore.getState();
     if (isGuest || !user) {
-      Alert.alert('Hata', 'Alışkanlık oluşturmak için giriş yapmalısınız.');
+      Alert.alert(i18n.deleteHabitTitle, i18n.loginRequiredMsg);
       return;
     }
 
@@ -104,10 +102,12 @@ export default function NewHabitScreen() {
         name: name.trim(),
         icon: icon,
         createdAt: serverTimestamp(),
+        reminderEnabled,
+        reminderTime,
       };
 
       if (type === 'done' || type === 'time') {
-        habitData.frequency = frequency;
+        habitData.frequency = frequency === i18n.freqCustom ? 'Özel' : (frequency === i18n.freqEveryday ? 'Her gün' : frequency);
         if (frequency === 'Özel') {
           habitData.customDays = customDays;
         }
@@ -123,8 +123,12 @@ export default function NewHabitScreen() {
         habitData.limitType = 'count';
       }
 
-      await addDoc(collection(db, 'habits'), habitData);
-
+      const newHabit = await createHabit(habitData);
+      
+      if (newHabit && reminderEnabled) {
+        await scheduleHabitReminder(newHabit.id, newHabit.name, reminderTime);
+      }
+      
       // ── Local Store Güncelleme ──────────────────────────────────────
       const base = { name: name.trim(), icon, type, color: type === 'time' ? color : undefined };
       if (type === 'done') {
@@ -138,13 +142,15 @@ export default function NewHabitScreen() {
           limitPeriod,
           limitMinutes: 0,
           limitCount,
+          reminderEnabled,
+          reminderTime,
         } as Omit<BadHabit, 'id' | 'createdAt' | 'updatedAt' | 'userId' | 'isArchived' | 'sortOrder'>);
       }
       
       router.back();
     } catch (error) {
       console.error("Habit save error:", error);
-      Alert.alert('Hata', 'Alışkanlık veri tabanına kaydedilemedi.');
+      Alert.alert(i18n.deleteHabitTitle, i18n.dbSaveError);
     } finally {
       setIsSaving(false);
     }
@@ -192,7 +198,7 @@ export default function NewHabitScreen() {
                 <Ionicons name="chevron-back" size={22} color="#fff" />
               </LinearGradient>
             </TouchableOpacity>
-            <Text style={[styles.headerTitle, { color: t.t1 }]}>Yeni Alışkanlık</Text>
+            <Text style={[styles.headerTitle, { color: t.t1 }]}>{i18n.newHabitTitle}</Text>
             <View style={{ width: 44 }} />
           </View>
 
@@ -207,15 +213,15 @@ export default function NewHabitScreen() {
             {/* ── Choose Habit Type ── */}
             <View style={styles.centeredLabelRow}>
               <View style={[styles.labelLine, { backgroundColor: t.tLabel }]} />
-              <Text style={[styles.centeredLabel, { color: t.tLabel }]}>Alışkanlık Türü Seç</Text>
+              <Text style={[styles.centeredLabel, { color: t.tLabel }]}>{i18n.habitTypeSelect}</Text>
               <View style={[styles.labelLine, { backgroundColor: t.tLabel }]} />
             </View>
 
             <View style={styles.typeRow}>
               {([
-                { key: 'done' as HabitType, label: 'YAPILDI' },
-                { key: 'time' as HabitType, label: 'SÜRE' },
-                { key: 'bad' as HabitType, label: 'KÖTÜ ALIŞKANLIK' },
+                { key: 'done' as HabitType, label: i18n.typeDone },
+                { key: 'time' as HabitType, label: i18n.typeTime },
+                { key: 'bad' as HabitType, label: i18n.typeBad },
               ] as { key: HabitType; label: string }[]).map((opt) => {
                 const isActive = type === opt.key;
                 return (
@@ -245,7 +251,7 @@ export default function NewHabitScreen() {
             {/* ── Habit Name ── */}
             <View style={styles.centeredLabelRow}>
               <View style={[styles.labelLine, { backgroundColor: t.tLabel }]} />
-              <Text style={[styles.centeredLabel, { color: t.tLabel }]}>Alışkanlık Adı:</Text>
+              <Text style={[styles.centeredLabel, { color: t.tLabel }]}>{i18n.habitNameLabel}</Text>
               <View style={[styles.labelLine, { backgroundColor: t.tLabel }]} />
             </View>
 
@@ -258,7 +264,7 @@ export default function NewHabitScreen() {
                 ]}
                 value={name}
                 onChangeText={(tv) => { setName(tv); if (nameError) setNameError(null); }}
-                placeholder="Örn: Sabah meditasyonu"
+                placeholder={i18n.habitNamePlaceholder}
                 placeholderTextColor={t.inputPlaceholder}
                 autoFocus
                 maxLength={50}
@@ -271,7 +277,7 @@ export default function NewHabitScreen() {
             {/* ── Detail Section ── */}
             <View style={styles.detailHeaderRow}>
               <View style={[styles.detailLine, { backgroundColor: t.divider }]} />
-              <Text style={[styles.detailHeaderText, { color: t.t2 }]}>Detay</Text>
+              <Text style={[styles.detailHeaderText, { color: t.t2 }]}>{i18n.detailLabel}</Text>
               <View style={[styles.detailLine, { backgroundColor: t.divider }]} />
             </View>
 
@@ -283,7 +289,7 @@ export default function NewHabitScreen() {
                   onPress={() => togglePanel('frequency')}
                   activeOpacity={0.7}
                 >
-                  <Text style={[styles.detailRowText, { color: t.tLabel }]}>Sıklık</Text>
+                  <Text style={[styles.detailRowText, { color: t.tLabel }]}>{i18n.frequencyLabel}</Text>
                   <Text style={[styles.detailRowValue, { color: t.t3 }]}>{frequency}</Text>
                   <Ionicons
                     name={openPanel === 'frequency' ? 'chevron-up' : 'chevron-down'}
@@ -325,9 +331,9 @@ export default function NewHabitScreen() {
                   onPress={() => togglePanel('period')}
                   activeOpacity={0.7}
                 >
-                  <Text style={[styles.detailRowText, { color: t.tLabel }]}>Limit</Text>
+                  <Text style={[styles.detailRowText, { color: t.tLabel }]}>{i18n.limitLabel}</Text>
                   <Text style={[styles.detailRowValue, { color: t.t3 }]}>
-                    {`${limitCount} kez / ${PERIOD_OPTIONS.find((p) => p.key === limitPeriod)?.label ?? 'Gün'}`}
+                    {`${limitCount} ${i18n.stepperTimes} / ${PERIOD_OPTIONS.find((p) => p.key === limitPeriod)?.label ?? i18n.periodDayLabel}`}
                   </Text>
                   <Ionicons
                     name={openPanel === 'period' ? 'chevron-up' : 'chevron-down'}
@@ -338,7 +344,7 @@ export default function NewHabitScreen() {
                 {openPanel === 'period' && (
                   <View style={[styles.limitPanel, { backgroundColor: t.panelBg, borderColor: t.panelBorder }]}>
                     {/* Period seçici */}
-                    <Text style={[styles.limitPanelLabel, { color: t.t3 }]}>Periyot</Text>
+                    <Text style={[styles.limitPanelLabel, { color: t.t3 }]}>{i18n.periodLabel}</Text>
                     <View style={styles.periodBtnRow}>
                       {PERIOD_OPTIONS.map((opt) => {
                         const active = limitPeriod === opt.key;
@@ -366,7 +372,7 @@ export default function NewHabitScreen() {
                     </View>
 
                     {/* Kaç kez stepper */}
-                    <Text style={[styles.limitPanelLabel, { color: t.t3, marginTop: 14 }]}>Kaç kez</Text>
+                    <Text style={[styles.limitPanelLabel, { color: t.t3, marginTop: 14 }]}>{i18n.timesLabel}</Text>
                     <View style={styles.stepperRow}>
                       <TouchableOpacity
                         onPress={() => setLimitCount((c) => Math.max(1, c - 1))}
@@ -383,7 +389,7 @@ export default function NewHabitScreen() {
                       >
                         <Ionicons name="add" size={18} color={t.t2} />
                       </TouchableOpacity>
-                      <Text style={[styles.stepperUnit, { color: t.t3 }]}>kez</Text>
+                      <Text style={[styles.stepperUnit, { color: t.t3 }]}>{i18n.stepperTimes}</Text>
                     </View>
                   </View>
                 )}
@@ -391,9 +397,9 @@ export default function NewHabitScreen() {
             )}
 
             {/* Özel gün seçici — yalnızca "Özel" seçiliyken görünür */}
-            {frequency === 'Özel' && openPanel !== 'frequency' && (
+            {frequency === i18n.freqCustom && openPanel !== 'frequency' && (
               <View style={[styles.customDayPanel, { backgroundColor: t.panelBg, borderColor: t.panelBorder }]}>
-                <Text style={[styles.customDayTitle, { color: t.t3 }]}>Günleri seç</Text>
+                <Text style={[styles.customDayTitle, { color: t.t3 }]}>{i18n.customDayTitle}</Text>
                 <View style={styles.customDayRow}>
                   {DAY_LABELS.map((label, idx) => {
                     const active = customDays[idx];
@@ -421,7 +427,7 @@ export default function NewHabitScreen() {
                   })}
                 </View>
                 {customDays.every((d) => !d) && (
-                  <Text style={[styles.customDayHint, { color: t.t3 }]}>En az bir gün seçin</Text>
+                  <Text style={[styles.customDayHint, { color: t.t3 }]}>{i18n.customDayHint}</Text>
                 )}
               </View>
             )}
@@ -434,8 +440,10 @@ export default function NewHabitScreen() {
               onPress={() => togglePanel('reminder')}
               activeOpacity={0.7}
             >
-              <Text style={[styles.detailRowText, { color: t.tLabel }]}>Hatırlatıcı</Text>
-              <Text style={[styles.detailRowValue, { color: t.t3 }]}>Ayarla</Text>
+              <Text style={[styles.detailRowText, { color: t.tLabel }]}>{i18n.reminderLabel}</Text>
+              <Text style={[styles.detailRowValue, { color: t.t3 }]}>
+                {reminderEnabled ? reminderTime : i18n.reminderOff}
+              </Text>
               <Ionicons
                 name={openPanel === 'reminder' ? 'chevron-up' : 'chevron-down'}
                 size={14}
@@ -444,16 +452,47 @@ export default function NewHabitScreen() {
             </TouchableOpacity>
             {openPanel === 'reminder' && (
               <View style={[styles.expandedPanel, { backgroundColor: t.panelBg, borderColor: t.panelBorder }]}>
-                <Text style={[styles.reminderNote, { color: t.t2 }]}>
-                  🔔  Hatırlatmalar Faz 3'te Firebase bildirim entegrasyonu ile gelecek.
-                </Text>
+                <View style={styles.reminderToggleRow}>
+                  <Text style={[styles.reminderLabel, { color: t.t2 }]}>{i18n.reminderToggleLabel}</Text>
+                  <TouchableOpacity 
+                    onPress={() => setReminderEnabled(!reminderEnabled)}
+                    style={[
+                      styles.toggleBtn, 
+                      { backgroundColor: reminderEnabled ? '#7c3aed' : 'rgba(255,255,255,0.1)' }
+                    ]}
+                  >
+                    <View style={[styles.toggleCircle, { transform: [{ translateX: reminderEnabled ? 20 : 0 }] }]} />
+                  </TouchableOpacity>
+                </View>
+                
+                {reminderEnabled && (
+                  <TouchableOpacity 
+                    style={styles.timeSelectBtn}
+                    onPress={() => setShowTimePicker(true)}
+                  >
+                    <Text style={[styles.timeSelectLabel, { color: t.t3 }]}>{i18n.reminderTimeSelectLabel}</Text>
+                    <Text style={[styles.timeSelectValue, { color: t.t1 }]}>{reminderTime}</Text>
+                    <Ionicons name="time-outline" size={18} color="#c084fc" />
+                  </TouchableOpacity>
+                )}
               </View>
             )}
+
+            <TimePickerModal
+              visible={showTimePicker}
+              title={i18n.reminderTimePickerTitle}
+              time={reminderTime}
+              onConfirm={(time) => {
+                setReminderTime(time);
+                setShowTimePicker(false);
+              }}
+              onClose={() => setShowTimePicker(false)}
+            />
 
             {/* Renk seçici — yalnızca time türü için */}
             {type === 'time' && (
               <View style={[styles.detailRow, { borderBottomColor: t.divider }]}>
-                <Text style={[styles.detailRowText, { color: t.tLabel }]}>Renk</Text>
+                <Text style={[styles.detailRowText, { color: t.tLabel }]}>{i18n.colorLabel}</Text>
                 <View style={styles.colorPickerRow}>
                   {COLOR_OPTIONS.map((c) => (
                     <TouchableOpacity
@@ -477,7 +516,7 @@ export default function NewHabitScreen() {
               onPress={() => togglePanel('icon')}
               activeOpacity={0.7}
             >
-              <Text style={[styles.detailRowText, { color: t.tLabel }]}>İkon Seç</Text>
+              <Text style={[styles.detailRowText, { color: t.tLabel }]}>{i18n.iconLabel}</Text>
               <HabitIcon icon={icon} size={22} color="#c084fc" />
               <Ionicons
                 name={openPanel === 'icon' ? 'chevron-up' : 'chevron-down'}
@@ -524,7 +563,7 @@ export default function NewHabitScreen() {
               onPress={() => router.back()}
               activeOpacity={0.75}
             >
-              <Text style={[styles.cancelText, { color: t.t2 }]}>İptal</Text>
+              <Text style={[styles.cancelText, { color: t.t2 }]}>{i18n.cancelBtn}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -537,7 +576,7 @@ export default function NewHabitScreen() {
                 colors={['#7c3aed', '#5b21b6']}
                 style={styles.saveGrad}
               >
-                <Text style={styles.saveText}>{isSaving ? 'Kaydediliyor…' : 'Kaydet'}</Text>
+                <Text style={styles.saveText}>{isSaving ? i18n.savingBtn : i18n.saveBtn}</Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>
@@ -604,7 +643,7 @@ const styles = StyleSheet.create({
   },
   centeredLabel: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'InriaSerif_700Bold',
     letterSpacing: 0.3,
   },
 
@@ -635,13 +674,13 @@ const styles = StyleSheet.create({
   },
   typeTextActive: {
     fontSize: 11,
-    fontWeight: '800',
+    fontFamily: 'InriaSerif_700Bold',
     color: '#fff',
     letterSpacing: 0.8,
   },
   typeTextInactive: {
     fontSize: 11,
-    fontWeight: '600',
+    fontFamily: 'InriaSerif_700Bold',
     letterSpacing: 0.8,
   },
 
@@ -653,7 +692,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 16,
     fontSize: 16,
-    fontWeight: '500',
+    fontFamily: 'InriaSerif_400Regular',
   },
   nameInputError: {
     borderColor: 'rgba(239,68,68,0.60)',
@@ -683,7 +722,7 @@ const styles = StyleSheet.create({
   },
   detailHeaderText: {
     fontSize: 13,
-    fontWeight: '700',
+    fontFamily: 'InriaSerif_700Bold',
     letterSpacing: 0.5,
   },
 
@@ -701,7 +740,7 @@ const styles = StyleSheet.create({
   detailRowText: {
     flex: 1,
     fontSize: 14,
-    fontWeight: '500',
+    fontFamily: 'InriaSerif_400Regular',
   },
   detailRowValue: {
     fontSize: 13,
@@ -713,7 +752,7 @@ const styles = StyleSheet.create({
   },
   inlineInput: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'InriaSerif_700Bold',
     textAlign: 'right',
     minWidth: 48,
     paddingVertical: 0,
@@ -727,7 +766,7 @@ const styles = StyleSheet.create({
   },
   limitPanelLabel: {
     fontSize: 11,
-    fontWeight: '600',
+    fontFamily: 'InriaSerif_700Bold',
     letterSpacing: 0.8,
     textTransform: 'uppercase',
     marginBottom: 10,
@@ -756,12 +795,12 @@ const styles = StyleSheet.create({
   },
   periodBtnTextActive: {
     fontSize: 14,
-    fontWeight: '700',
+    fontFamily: 'InriaSerif_700Bold',
     color: '#fff',
   },
   periodBtnText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'InriaSerif_700Bold',
   },
   stepperRow: {
     flexDirection: 'row',
@@ -778,13 +817,13 @@ const styles = StyleSheet.create({
   },
   stepperValue: {
     fontSize: 24,
-    fontWeight: '700',
+    fontFamily: 'InriaSerif_700Bold',
     minWidth: 36,
     textAlign: 'center',
   },
   stepperUnit: {
     fontSize: 14,
-    fontWeight: '500',
+    fontFamily: 'InriaSerif_400Regular',
   },
 
   limitTypeToggle: {
@@ -798,16 +837,58 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
   },
   limitTypeBtnActive: {
-    borderColor: 'rgba(192,132,252,0.60)',
-    backgroundColor: 'rgba(168,85,247,0.25)',
+    backgroundColor: '#7c3aed',
+    borderColor: '#c084fc',
+  },
+  // Reminder styles
+  reminderToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+    paddingHorizontal: 4,
+  },
+  reminderLabel: {
+    fontSize: 14,
+    fontFamily: 'InriaSerif_700Bold',
+  },
+  toggleBtn: {
+    width: 48,
+    height: 28,
+    borderRadius: 14,
+    padding: 4,
+    justifyContent: 'center',
+  },
+  toggleCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#fff',
+  },
+  timeSelectBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    padding: 12,
+    borderRadius: 12,
+    gap: 10,
+  },
+  timeSelectLabel: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: 'InriaSerif_400Regular',
+  },
+  timeSelectValue: {
+    fontSize: 16,
+    fontFamily: 'InriaSerif_700Bold',
   },
   limitTypeBtnText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontFamily: 'InriaSerif_700Bold',
   },
   limitTypeBtnTextActive: {
     color: '#c084fc',
-    fontWeight: '700',
+    fontFamily: 'InriaSerif_700Bold',
   },
 
   // Custom day picker
@@ -820,7 +901,7 @@ const styles = StyleSheet.create({
   },
   customDayTitle: {
     fontSize: 11,
-    fontWeight: '600',
+    fontFamily: 'InriaSerif_700Bold',
     letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
@@ -852,12 +933,12 @@ const styles = StyleSheet.create({
   },
   dayBtnTextActive: {
     fontSize: 11,
-    fontWeight: '800',
+    fontFamily: 'InriaSerif_700Bold',
     color: '#fff',
   },
   dayBtnText: {
     fontSize: 11,
-    fontWeight: '600',
+    fontFamily: 'InriaSerif_700Bold',
   },
   customDayHint: {
     fontSize: 11,
@@ -955,7 +1036,7 @@ const styles = StyleSheet.create({
   },
   cancelText: {
     fontSize: 15,
-    fontWeight: '600',
+    fontFamily: 'InriaSerif_700Bold',
   },
   saveWrapper: {
     flex: 2,
@@ -974,8 +1055,62 @@ const styles = StyleSheet.create({
   },
   saveText: {
     fontSize: 16,
-    fontWeight: '700',
+    fontFamily: 'InriaSerif_700Bold',
     color: '#fff',
     letterSpacing: 0.3,
   },
+});
+
+function TimePickerModal({ visible, title, time, onConfirm, onClose }: { 
+  visible: boolean; title: string; time: string; onConfirm: (t: string) => void; onClose: () => void 
+}) {
+  const [h, setH] = useState(parseInt(time.split(':')[0], 10));
+  const [m, setM] = useState(parseInt(time.split(':')[1], 10));
+
+  const changeH = (delta: number) => setH((prev) => (prev + delta + 24) % 24);
+  const changeM = (delta: number) => setM((prev) => (prev + delta + 60) % 60);
+
+  return (
+    <Modal visible={visible} transparent animationType="fade">
+      <View style={tpStyles.backdrop}>
+        <View style={tpStyles.sheet}>
+          <Text style={tpStyles.title}>{title}</Text>
+          <View style={tpStyles.row}>
+            <View style={tpStyles.col}>
+              <TouchableOpacity onPress={() => changeH(1)}><Ionicons name="chevron-up" size={24} color="#c084fc" /></TouchableOpacity>
+              <Text style={tpStyles.val}>{String(h).padStart(2, '0')}</Text>
+              <TouchableOpacity onPress={() => changeH(-1)}><Ionicons name="chevron-down" size={24} color="#c084fc" /></TouchableOpacity>
+            </View>
+            <Text style={tpStyles.colon}>:</Text>
+            <View style={tpStyles.col}>
+              <TouchableOpacity onPress={() => changeM(5)}><Ionicons name="chevron-up" size={24} color="#c084fc" /></TouchableOpacity>
+              <Text style={tpStyles.val}>{String(m).padStart(2, '0')}</Text>
+              <TouchableOpacity onPress={() => changeM(-5)}><Ionicons name="chevron-down" size={24} color="#c084fc" /></TouchableOpacity>
+            </View>
+          </View>
+          <View style={tpStyles.btnRow}>
+            <TouchableOpacity onPress={onClose} style={tpStyles.btn}><Text style={tpStyles.btnText}>İptal</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => onConfirm(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`)} style={[tpStyles.btn, tpStyles.confirmBtn]}>
+              <Text style={tpStyles.confirmBtnText}>Tamam</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const tpStyles = StyleSheet.create({
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
+  sheet: { width: 280, backgroundColor: '#1a103d', borderRadius: 24, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(192,132,252,0.3)' },
+  title: { fontSize: 18, fontWeight: '700', color: '#fff', marginBottom: 20 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 24 },
+  col: { alignItems: 'center', gap: 5 },
+  val: { fontSize: 44, fontWeight: '800', color: '#fff', minWidth: 60, textAlign: 'center' },
+  colon: { fontSize: 40, fontWeight: '800', color: 'rgba(255,255,255,0.4)', marginBottom: 5 },
+  btnRow: { flexDirection: 'row', gap: 12, width: '100%' },
+  btn: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.05)' },
+  btnText: { color: 'rgba(255,255,255,0.6)', fontWeight: '600' },
+  confirmBtn: { backgroundColor: '#7c3aed' },
+  confirmBtnText: { color: '#fff', fontWeight: '700' },
 });

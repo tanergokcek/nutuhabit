@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { useHabitStore, SLEEP_HABIT_ID, SLEEP_HABIT } from '@/src/store/useHabitStore';
+import { useTranslation } from '@/src/hooks/useTranslation';
 import { TimerDisplay } from '@/components/habits/TimerDisplay';
 import { DoneToggle } from '@/components/habits/DoneToggle';
 import { BadHabitCounter } from '@/components/habits/BadHabitCounter';
@@ -67,6 +68,7 @@ const statStyles = StyleSheet.create({
 export default function HabitDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const i18n = useTranslation();
   const { habits, logs, getTodayLog, toggleLog, deleteHabit } = useHabitStore();
 
   const habit = habits.find((h) => h.id === id) || (id === SLEEP_HABIT_ID ? SLEEP_HABIT : undefined);
@@ -104,10 +106,10 @@ export default function HabitDetailScreen() {
         <LinearGradient colors={['#1e0530', '#060412']} style={StyleSheet.absoluteFillObject} />
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.notFound}>
-            <Text style={styles.notFoundText}>Alışkanlık bulunamadı</Text>
+            <Text style={styles.notFoundText}>{i18n.habitNotFound}</Text>
             <TouchableOpacity onPress={() => router.back()} style={styles.backBtnWrapper}>
               <LinearGradient colors={['#9333ea', '#7c3aed']} style={styles.backBtnGrad}>
-                <Text style={styles.backBtnText}>Geri Dön</Text>
+                <Text style={styles.backBtnText}>{i18n.backBtn}</Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>
@@ -125,8 +127,8 @@ export default function HabitDetailScreen() {
         <View style={styles.cardPadded}>
           <StreakFire count={streak.currentStreak} size="lg" />
           <View style={{ gap: 2 }}>
-            <Text style={styles.streakTitle}>{streak.currentStreak} Günlük Seri</Text>
-            <Text style={styles.streakSubtitle}>En uzun: {streak.longestStreak} gün</Text>
+            <Text style={styles.streakTitle}>{streak.currentStreak}{i18n.streakDayLabel}</Text>
+            <Text style={styles.streakSubtitle}>{i18n.longestStreakLabel}: {streak.longestStreak} {i18n.dayUnit}</Text>
           </View>
         </View>
       </BlurView>
@@ -136,7 +138,7 @@ export default function HabitDetailScreen() {
         <View style={styles.cardOverlay} />
         <View style={styles.cardSpecular} />
         <View style={styles.cardPadded}>
-          <Text style={styles.sectionLabel}>BUGÜN</Text>
+          <Text style={styles.sectionLabel}>{i18n.today.toUpperCase()}</Text>
           <DoneToggle
             status={todayLog?.status}
             onChange={() => toggleLog(habit.id, getTodayString())}
@@ -147,11 +149,11 @@ export default function HabitDetailScreen() {
 
       {/* Stats row */}
       <View style={styles.statsRow}>
-        <GlassStatCard value={String(streak.totalDays)} label="Toplam Gün" />
-        <GlassStatCard value={String(streak.longestStreak)} label="En Uzun Seri" />
+        <GlassStatCard value={String(streak.totalDays)} label={i18n.totalDaysLabel} />
+        <GlassStatCard value={String(streak.longestStreak)} label={i18n.longestStreakLabel} />
         <GlassStatCard
           value={habitLogs.length > 0 ? `${Math.round((streak.totalDays / habitLogs.length) * 100)}%` : '0%'}
-          label="Tamamlanma"
+          label={i18n.completionLabel}
         />
       </View>
 
@@ -168,7 +170,11 @@ export default function HabitDetailScreen() {
     const sleepMins = todayLog?.elapsedMinutes ?? 0;
     const sleepH = Math.floor(sleepMins / 60);
     const sleepM = sleepMins % 60;
-    const durationStr = sleepM > 0 ? `${sleepH} saat ${sleepM} dakika` : sleepH > 0 ? `${sleepH} saat` : null;
+    const durationStr = sleepMins > 0 
+      ? (sleepH > 0 
+          ? `${sleepH} ${i18n.hourUnit} ${sleepM > 0 ? `${sleepM} ${i18n.minuteUnit}` : ''}` 
+          : `${sleepM} ${i18n.minuteUnit}`)
+      : null;
 
     let bedH: number | null = null, bedM: number | null = null;
     let wakeH: number | null = null, wakeM: number | null = null;
@@ -209,17 +215,17 @@ export default function HabitDetailScreen() {
                   <Text style={sleepDetailStyles.ringEmoji}>🌙</Text>
                   {durationStr ? (
                     <>
-                      <Text style={[sleepDetailStyles.ringDuration, isGoalMet && { color: '#e9d5ff' }]}>
-                        {sleepH > 0 ? `${sleepH}sa` : ''}{sleepM > 0 ? ` ${sleepM}dk` : ''}
+                    <Text style={[sleepDetailStyles.ringDuration, isGoalMet && { color: '#e9d5ff' }]}>
+                        {sleepH > 0 ? `${sleepH}${i18n.hourUnitShort}` : ''}{sleepM > 0 ? ` ${sleepM}${i18n.minUnitShort}` : ''}
                       </Text>
                       <Text style={sleepDetailStyles.ringLabel}>
-                        {isGoalMet ? '🎉 Hedefe ulaşıldı' : `Hedef: ${Math.floor(goalMins / 60)} saat`}
+                        {isGoalMet ? `🎉 ${i18n.goalMet}` : `${i18n.goalLabel}: ${Math.floor(goalMins / 60)} ${i18n.hourUnit}`}
                       </Text>
                     </>
                   ) : (
                     <>
                       <Text style={sleepDetailStyles.ringNoData}>—</Text>
-                      <Text style={sleepDetailStyles.ringLabel}>Bugün kayıt yok</Text>
+                      <Text style={sleepDetailStyles.ringLabel}>{i18n.noDataToday}</Text>
                     </>
                   )}
                 </View>
@@ -231,19 +237,19 @@ export default function HabitDetailScreen() {
               <View style={sleepDetailStyles.timesRow}>
                 <View style={sleepDetailStyles.timeBlock}>
                   <Text style={sleepDetailStyles.timeVal}>{fmt(bedH!, bedM!)}</Text>
-                  <Text style={sleepDetailStyles.timeLabel}>YATIŞ</Text>
+                  <Text style={sleepDetailStyles.timeLabel}>{i18n.bedtimeModal.toUpperCase()}</Text>
                 </View>
                 <Text style={sleepDetailStyles.arrow}>→</Text>
                 <View style={sleepDetailStyles.timeBlock}>
                   <Text style={sleepDetailStyles.timeVal}>{fmt(wakeH!, wakeM!)}</Text>
-                  <Text style={sleepDetailStyles.timeLabel}>UYANIŞ</Text>
+                  <Text style={sleepDetailStyles.timeLabel}>{i18n.wakeUpModal.toUpperCase()}</Text>
                 </View>
               </View>
             )}
 
             {!durationStr && (
               <Text style={sleepDetailStyles.hint}>
-                Ana sayfadaki uyku kartından saat girerek kaydet
+                {i18n.sleepDetailHint}
               </Text>
             )}
           </View>
@@ -256,19 +262,19 @@ export default function HabitDetailScreen() {
           <View style={styles.cardPadded}>
             <StreakFire count={streak.currentStreak} size="lg" />
             <View style={{ gap: 2 }}>
-              <Text style={styles.streakTitle}>{streak.currentStreak} Günlük Seri</Text>
-              <Text style={styles.streakSubtitle}>En uzun: {streak.longestStreak} gün</Text>
+              <Text style={styles.streakTitle}>{streak.currentStreak}{i18n.streakDayLabel}</Text>
+              <Text style={styles.streakSubtitle}>{i18n.longestStreakLabel}: {streak.longestStreak} {i18n.dayUnit}</Text>
             </View>
           </View>
         </BlurView>
 
         {/* Stats */}
         <View style={styles.statsRow}>
-          <GlassStatCard value={String(streak.totalDays)} label="Toplam Gün" />
-          <GlassStatCard value={String(streak.longestStreak)} label="En Uzun Seri" />
+          <GlassStatCard value={String(streak.totalDays)} label={i18n.totalDaysLabel} />
+          <GlassStatCard value={String(streak.longestStreak)} label={i18n.longestStreakLabel} />
           <GlassStatCard
-            value={`${Math.floor(goalMins / 60)}sa`}
-            label="Günlük Hedef"
+            value={`${Math.floor(goalMins / 60)}${i18n.hourUnitShort}`}
+            label={i18n.dailyGoalLabel}
           />
         </View>
 
@@ -290,9 +296,11 @@ export default function HabitDetailScreen() {
     const isGoalMet = goalMins > 0 ? elapsedMins >= goalMins : elapsedMins > 0;
     const elapsedH = Math.floor(elapsedMins / 60);
     const elapsedM = elapsedMins % 60;
-    const elapsedStr = elapsedH > 0
-      ? `${elapsedH}sa${elapsedM > 0 ? ` ${elapsedM}dk` : ''}`
-      : elapsedMins > 0 ? `${elapsedMins}dk` : null;
+    const elapsedStr = elapsedMins > 0 
+      ? (elapsedH > 0 
+          ? `${elapsedH}${i18n.hourUnitShort}${elapsedM > 0 ? ` ${elapsedM}${i18n.minUnitShort}` : ''}` 
+          : `${elapsedMins}${i18n.minUnitShort}`)
+      : null;
 
     // Total logged this week
     const today2 = new Date();
@@ -331,13 +339,13 @@ export default function HabitDetailScreen() {
                         {elapsedStr}
                       </Text>
                       <Text style={timeDetailStyles.ringLabel}>
-                        {isGoalMet ? '🎉 Tamamlandı!' : goalMins > 0 ? `Hedef: ${Math.floor(goalMins / 60) > 0 ? Math.floor(goalMins / 60) + 'sa ' : ''}${goalMins % 60 > 0 ? goalMins % 60 + 'dk' : ''}` : 'Kayıt var'}
+                        {isGoalMet ? `🎉 ${i18n.completed}!` : goalMins > 0 ? `${i18n.goalLabel}: ${Math.floor(goalMins / 60) > 0 ? Math.floor(goalMins / 60) + i18n.hourUnitShort + ' ' : ''}${goalMins % 60 > 0 ? (goalMins % 60) + i18n.minUnitShort : ''}` : i18n.hasData}
                       </Text>
                     </>
                   ) : (
                     <>
                       <Text style={timeDetailStyles.ringNoData}>—</Text>
-                      <Text style={timeDetailStyles.ringLabel}>Bugün kayıt yok</Text>
+                      <Text style={timeDetailStyles.ringLabel}>{i18n.noDataToday}</Text>
                     </>
                   )}
                 </View>
@@ -345,8 +353,8 @@ export default function HabitDetailScreen() {
             </View>
             <Text style={timeDetailStyles.hint}>
               {elapsedStr
-                ? `Bugün ${elapsedStr} kaydedildi`
-                : 'Ekle butonundan süre kaydet'}
+                ? i18n.recordedToday.replace('%s', elapsedStr)
+                : i18n.timeDetailHint}
             </Text>
           </View>
         </BlurView>
@@ -358,22 +366,22 @@ export default function HabitDetailScreen() {
           <View style={styles.cardPadded}>
             <StreakFire count={streak.currentStreak} size="lg" />
             <View style={{ gap: 2 }}>
-              <Text style={styles.streakTitle}>{streak.currentStreak} Günlük Seri</Text>
-              <Text style={styles.streakSubtitle}>En uzun: {streak.longestStreak} gün</Text>
+              <Text style={styles.streakTitle}>{streak.currentStreak}{i18n.streakDayLabel}</Text>
+              <Text style={styles.streakSubtitle}>{i18n.longestStreakLabel}: {streak.longestStreak} {i18n.dayUnit}</Text>
             </View>
           </View>
         </BlurView>
 
         {/* Stats row */}
         <View style={styles.statsRow}>
-          <GlassStatCard value={String(streak.totalDays)} label="Toplam Gün" />
+          <GlassStatCard value={String(streak.totalDays)} label={i18n.totalDaysLabel} />
           <GlassStatCard
-            value={weekMins > 59 ? `${Math.floor(weekMins / 60)}sa` : `${weekMins}dk`}
-            label="Bu Hafta"
+            value={weekMins > 59 ? `${Math.floor(weekMins / 60)}${i18n.hourUnitShort}` : `${weekMins}${i18n.minUnitShort}`}
+            label={i18n.thisWeek}
           />
           <GlassStatCard
-            value={goalMins > 0 ? (Math.floor(goalMins / 60) > 0 ? `${Math.floor(goalMins / 60)}sa` : `${goalMins}dk`) : '—'}
-            label="Günlük Hedef"
+            value={goalMins > 0 ? (Math.floor(goalMins / 60) > 0 ? `${Math.floor(goalMins / 60)}${i18n.hourUnitShort}` : `${goalMins}${i18n.minUnitShort}`) : '—'}
+            label={i18n.dailyGoalLabel}
           />
         </View>
 
@@ -401,8 +409,8 @@ export default function HabitDetailScreen() {
         <View style={styles.cardPadded}>
           <StreakFire count={streak.currentStreak} size="lg" />
           <View style={{ gap: 2 }}>
-            <Text style={styles.streakTitle}>{streak.currentStreak} Günlük Seri</Text>
-            <Text style={styles.streakSubtitle}>Limiti aşmadan geçirilen günler</Text>
+            <Text style={styles.streakTitle}>{streak.currentStreak} {i18n.streakDayLabel}</Text>
+            <Text style={styles.streakSubtitle}>{i18n.badHabitStreakSub}</Text>
           </View>
         </View>
       </BlurView>
@@ -413,7 +421,7 @@ export default function HabitDetailScreen() {
           <View style={styles.cardOverlay} />
           <View style={styles.cardSpecular} />
           <View style={styles.cardPadded}>
-            <Text style={styles.sectionLabel}>BUGÜN</Text>
+            <Text style={styles.sectionLabel}>{i18n.today.toUpperCase()}</Text>
             <BadHabitCounter habit={habit as BadHabit} log={todayLog} />
           </View>
         </BlurView>
@@ -421,11 +429,11 @@ export default function HabitDetailScreen() {
 
       {/* Stats row */}
       <View style={styles.statsRow}>
-        <GlassStatCard value={String(streak.currentStreak || 0)} label="Güncel Seri" />
-        <GlassStatCard value={String(streak.longestStreak || 0)} label="En Uzun Seri" />
+        <GlassStatCard value={String(streak.currentStreak || 0)} label={i18n.currentStreakLabel} />
+        <GlassStatCard value={String(streak.longestStreak || 0)} label={i18n.longestStreakLabel} />
         {((habit as BadHabit).limitType === 'count' || (!(habit as BadHabit).limitType && (habit as BadHabit).limitCount))
-          ? <GlassStatCard value={`${(habit as BadHabit).limitCount || 0} kez`} label="Limit" />
-          : <GlassStatCard value={`${(habit as BadHabit).limitMinutes || 0} dk`} label="Günlük Limit" />
+          ? <GlassStatCard value={`${(habit as BadHabit).limitCount || 0} ${i18n.timesUnit}`} label={i18n.limitLabel} />
+          : <GlassStatCard value={`${(habit as BadHabit).limitMinutes || 0} ${i18n.minUnitShort}`} label={i18n.dailyLimitLabel} />
         }
       </View>
 
@@ -499,12 +507,12 @@ export default function HabitDetailScreen() {
             <TouchableOpacity
               onPress={() => {
                 Alert.alert(
-                  'Alışkanlığı Sil',
-                  `"${habit.name}" kalıcı olarak silinsin mi?`,
+                  i18n.deleteHabitTitle,
+                  i18n.deleteHabitConfirm(habit.name),
                   [
-                    { text: 'Vazgeç', style: 'cancel' },
+                    { text: i18n.cancel, style: 'cancel' },
                     {
-                      text: 'Sil', style: 'destructive',
+                      text: i18n.delete, style: 'destructive',
                       onPress: () => { deleteHabit(habit.id); router.back(); },
                     },
                   ]

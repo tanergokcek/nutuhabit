@@ -10,6 +10,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import { resetUserData } from '@/src/services/habits';
+import { resetAllTodos } from '@/src/services/todos';
 import React, { useState } from 'react';
 import {
   Alert,
@@ -54,7 +56,7 @@ export default function SettingsScreen() {
   const { resetTodos } = useTodoStore();
   const { resetTimerStore } = useTimerStore();
 
-  const displayName = user?.displayName ?? 'Kullanıcı';
+  const displayName = user?.displayName ?? i18n.userDefault;
   const avatarLetter = displayName.charAt(0).toUpperCase();
 
   const SECTIONS: Section[] = [
@@ -69,8 +71,6 @@ export default function SettingsScreen() {
     {
       label: i18n.sectionApp,
       rows: [
-        { type: 'toggle', id: 'weeklyReport', emoji: '📊', iconBg: '#1e3a5f', title: i18n.weeklyReport, subtitle: i18n.weeklyReportSubtitle },
-        { type: 'arrow', id: 'privacy', emoji: '🔒', iconBg: '#1c1c2e', title: i18n.privacy, subtitle: i18n.privacySubtitle },
         { type: 'arrow', id: 'reset', emoji: '🗑️', iconBg: '#2d0a0a', title: i18n.resetData, subtitle: i18n.resetDataSubtitle, danger: true },
       ],
     },
@@ -112,10 +112,14 @@ export default function SettingsScreen() {
             text: i18n.resetDataBtn,
             style: 'destructive',
             onPress: async () => {
-              // useAuthStore'daki merkezi çıkış mantığını kullan ama burada çıkış yapmadan sadece verileri silmek için
-              // signOut fonksiyonu isAuthenticated'ı false yaptığı için login'e yönlendirir.
-              // Sadece verileri silmek istiyorsak manuel çağırıyoruz:
+              const { user } = useAuthStore.getState();
+              if (user?.id) {
+                // Firebase Reset
+                await resetUserData(user.id);
+                await resetAllTodos(user.id);
+              }
               
+              // Local Store Reset
               const { useHabitStore } = await import('@/src/store/useHabitStore');
               const { useTodoStore } = await import('@/src/store/useTodoStore');
               const { useTimerStore } = await import('@/src/store/useTimerStore');
@@ -178,8 +182,8 @@ export default function SettingsScreen() {
                   <Ionicons name="person-outline" size={30} color="rgba(255,255,255,0.55)" />
                 </LinearGradient>
               </View>
-              <Text style={[styles.profileName, { color: t.t1 }]}>Misafir Kullanıcı</Text>
-              <Text style={styles.guestNote}>Veriler yalnızca bu cihazda saklanır</Text>
+              <Text style={[styles.profileName, { color: t.t1 }]}>{i18n.guestUser}</Text>
+              <Text style={styles.guestNote}>{i18n.guestSubtitle}</Text>
               <TouchableOpacity
                 style={styles.loginBtn}
                 onPress={() => signOut()}
@@ -191,7 +195,7 @@ export default function SettingsScreen() {
                   start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                 >
                   <Ionicons name="log-in-outline" size={18} color="#fff" />
-                  <Text style={styles.loginBtnText}>Giriş Yap / Kayıt Ol</Text>
+                  <Text style={styles.loginBtnText}>{i18n.loginRegister}</Text>
                 </LinearGradient>
               </TouchableOpacity>
             </View>
@@ -271,12 +275,12 @@ export default function SettingsScreen() {
             style={styles.signOutBtn}
             onPress={() => {
               Alert.alert(
-                'Çıkış Yap',
-                'Hesabından çıkış yapmak istediğine emin misin kanka?',
+                i18n.signOutTitle,
+                i18n.signOutMsg,
                 [
-                  { text: 'Vazgeç', style: 'cancel' },
+                  { text: i18n.cancel, style: 'cancel' },
                   {
-                    text: 'Çıkış Yap',
+                    text: i18n.signOut,
                     style: 'destructive',
                     onPress: async () => {
                       // Merkezi signOut fonksiyonu artık her şeyi temizliyor
@@ -293,7 +297,7 @@ export default function SettingsScreen() {
               style={styles.signOutGrad}
             >
               <Ionicons name="log-out-outline" size={20} color="#f87171" />
-              <Text style={styles.signOutText}>Çıkış Yap</Text>
+              <Text style={styles.signOutText}>{i18n.signOut}</Text>
             </LinearGradient>
           </TouchableOpacity>
 

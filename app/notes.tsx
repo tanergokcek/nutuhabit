@@ -12,12 +12,10 @@ import { HabitIcon } from '@/components/ui/HabitIcon';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { addNote, fetchNotes, deleteNote, FirebaseNote } from '@/src/services/notes';
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-const TR_MONTHS = ['OCA', 'ŞUB', 'MAR', 'NİS', 'MAY', 'HAZ', 'TEM', 'AĞU', 'EYL', 'EKİ', 'KAS', 'ARA'];
-
-function toDisplay(dateStr: string): string {
+function toDisplay(dateStr: string, i18n: any): string {
   const [y, m, d] = dateStr.split('-').map(Number);
-  return `${d} ${TR_MONTHS[m - 1]} ${y}`;
+  const monthName = i18n.monthNames[m - 1].slice(0, 3).toUpperCase();
+  return `${d} ${monthName} ${y}`;
 }
 
 function todaySort(): string {
@@ -28,6 +26,7 @@ function todaySort(): string {
 // ── Screen ────────────────────────────────────────────────────────────────────
 export default function NotesScreen() {
   const router = useRouter();
+  const i18n = useTranslation();
   const { user, isGuest } = useAuthStore();
 
   const [notes, setNotes] = useState<FirebaseNote[]>([]);
@@ -73,7 +72,7 @@ export default function NotesScreen() {
   const handleAddNote = async () => {
     if (!newText.trim()) return;
     if (isGuest || !user?.id) {
-      Alert.alert('Giriş Gerekli', 'Not eklemek için giriş yapmalısın.');
+      Alert.alert(i18n.loginRequired, i18n.loginToNote);
       return;
     }
 
@@ -94,12 +93,12 @@ export default function NotesScreen() {
   // Not sil
   const handleDelete = (noteId: string) => {
     Alert.alert(
-      'Notu Sil',
-      'Bu notu silmek istediğine emin misin?',
+      i18n.deleteNoteTitle,
+      i18n.deleteNoteConfirm,
       [
-        { text: 'İptal', style: 'cancel' },
+        { text: i18n.cancel, style: 'cancel' },
         {
-          text: 'Sil',
+          text: i18n.delete,
           style: 'destructive',
           onPress: async () => {
             await deleteNote(noteId);
@@ -126,16 +125,16 @@ export default function NotesScreen() {
               <Ionicons name="chevron-back" size={18} color="#fff" />
             </View>
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Notlar</Text>
+          <Text style={styles.headerTitle}>{i18n.notesTitle}</Text>
           <View style={{ width: 36 }} />
         </View>
 
         {/* Filter tabs */}
         <View style={styles.legend}>
           {([
-            { key: 'all', label: 'Tümü', color: '#a855f7' },
-            { key: 'habit', label: 'Alışkanlık notu', color: '#a855f7' },
-            { key: 'personal', label: 'Kişisel not', color: '#60a5fa' },
+            { key: 'all', label: i18n.allNotes, color: '#a855f7' },
+            { key: 'habit', label: i18n.habitNoteFilter, color: '#a855f7' },
+            { key: 'personal', label: i18n.personalNoteFilter, color: '#60a5fa' },
           ] as { key: 'all' | 'habit' | 'personal'; label: string; color: string }[]).map((tab) => {
             const active = filterType === tab.key;
             return (
@@ -155,7 +154,7 @@ export default function NotesScreen() {
         {loading ? (
           <View style={styles.loadingState}>
             <ActivityIndicator size="large" color="#a855f7" />
-            <Text style={styles.loadingText}>Notlar yükleniyor...</Text>
+            <Text style={styles.loadingText}>{i18n.loadingNotes}</Text>
           </View>
         ) : (
           <ScrollView
@@ -174,9 +173,7 @@ export default function NotesScreen() {
             {filteredNotes.length === 0 && (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyIcon}>📝</Text>
-                <Text style={styles.emptyText}>
-                  Henüz not yok.{'\n'}Alışkanlık eklerken veya + butonuyla not oluşturabilirsin.
-                </Text>
+                <Text style={styles.emptyText}>{i18n.noNotesYet}</Text>
               </View>
             )}
 
@@ -196,10 +193,10 @@ export default function NotesScreen() {
                           <HabitIcon icon={item.habitIcon} size={13} color="#d8b4fe" />
                         )}
                         <Text style={styles.habitBadgeName} numberOfLines={1}>
-                          {item.habitName || 'Alışkanlık'}
+                          {item.habitName || i18n.habitDefaultName}
                         </Text>
                       </View>
-                      <Text style={styles.habitNoteDate}>{toDisplay(item.date)}</Text>
+                      <Text style={styles.habitNoteDate}>{toDisplay(item.date, i18n)}</Text>
                     </View>
                     <Text style={styles.habitNoteText}>{item.text}</Text>
                   </View>
@@ -214,9 +211,9 @@ export default function NotesScreen() {
                   <View style={styles.personalNoteHeader}>
                     <View style={styles.personalBadge}>
                       <Ionicons name="person" size={11} color="#93c5fd" />
-                      <Text style={styles.personalBadgeText}>Kişisel</Text>
+                      <Text style={styles.personalBadgeText}>{i18n.personalLabel}</Text>
                     </View>
-                    <Text style={styles.personalNoteDate}>{toDisplay(item.date)}</Text>
+                    <Text style={styles.personalNoteDate}>{toDisplay(item.date, i18n)}</Text>
                   </View>
                   <Text style={styles.personalNoteText}>{item.text}</Text>
                 </Pressable>
@@ -254,13 +251,13 @@ export default function NotesScreen() {
             <View style={styles.modalHandle} />
             <View style={styles.modalTitleRow}>
               <Ionicons name="person" size={16} color="#93c5fd" />
-              <Text style={styles.modalTitle}>Kişisel Not</Text>
+              <Text style={styles.modalTitle}>{i18n.personalNoteTitle}</Text>
             </View>
             <TextInput
               style={styles.noteInput}
               value={newText}
               onChangeText={setNewText}
-              placeholder="Bugün ne hissettirdi?"
+              placeholder={i18n.notePlaceholder}
               placeholderTextColor="rgba(255,255,255,0.25)"
               multiline
               numberOfLines={5}
@@ -269,7 +266,7 @@ export default function NotesScreen() {
             />
             <TouchableOpacity style={styles.saveBtn} onPress={handleAddNote} activeOpacity={0.85}>
               <LinearGradient colors={['#3b82f6', '#2563eb']} style={styles.saveBtnGrad}>
-                <Text style={styles.saveBtnText}>Kaydet</Text>
+                <Text style={styles.saveBtnText}>{i18n.save}</Text>
               </LinearGradient>
             </TouchableOpacity>
           </Pressable>

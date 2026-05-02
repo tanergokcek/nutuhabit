@@ -9,25 +9,21 @@ import { Ionicons } from '@expo/vector-icons';
 import { useHabitStore } from '@/src/store/useHabitStore';
 import { getTodayString } from '@/src/utils/date';
 import { HabitIcon } from '@/components/ui/HabitIcon';
-
-const MONTH_EN = [
-  'January','February','March','April','May','June',
-  'July','August','September','October','November','December',
-];
-const DAY_SHORT_EN = ['SU','MO','TU','WE','TH','FR','SA'];
-const DAY_SHORT_TR = ['31 Mar', '1 Mar', '2 Mar']; // unused helper
+import { useTranslation } from '@/src/hooks/useTranslation';
 
 function makeDateStr(y: number, m: number, d: number) {
-  return `${y}-${String(m + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 }
 
-function formatSelected(ds: string) {
+function formatSelected(ds: string, i18n: any) {
   const [y, m, d] = ds.split('-');
-  return `${parseInt(d)} ${MONTH_EN[parseInt(m) - 1].slice(0,3)} ${y}`;
+  const monthName = i18n.monthNames[parseInt(m) - 1].slice(0, 3);
+  return `${parseInt(d)} ${monthName} ${y}`;
 }
 
 export default function CalendarPage() {
   const router = useRouter();
+  const i18n = useTranslation();
   const { habits, logs } = useHabitStore();
   const today = new Date();
   const todayStr = getTodayString();
@@ -75,14 +71,14 @@ export default function CalendarPage() {
         {/* Header */}
         <TouchableOpacity style={styles.backRow} onPress={() => router.back()} activeOpacity={0.7}>
           <Ionicons name="chevron-back" size={18} color="rgba(255,255,255,0.75)" />
-          <Text style={styles.backText}>Back</Text>
+          <Text style={styles.backText}>{i18n.calendarBack}</Text>
         </TouchableOpacity>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
 
           {/* Month header */}
           <View style={styles.monthRow}>
-            <Text style={styles.monthTitle}>{MONTH_EN[month]} {year}</Text>
+            <Text style={styles.monthTitle}>{i18n.monthNames[month]} {year}</Text>
             <View style={styles.monthArrows}>
               <TouchableOpacity style={styles.arrowBtn} onPress={prevMonth} activeOpacity={0.7}>
                 <Ionicons name="chevron-back" size={16} color="rgba(255,255,255,0.80)" />
@@ -95,7 +91,7 @@ export default function CalendarPage() {
 
           {/* Day headers */}
           <View style={styles.dayHeaders}>
-            {DAY_SHORT_EN.map(d => (
+            {i18n.dayNamesShort.map(d => (
               <Text key={d} style={styles.dayHeaderText}>{d}</Text>
             ))}
           </View>
@@ -142,8 +138,8 @@ export default function CalendarPage() {
 
           {/* Selected date info */}
           <View style={styles.dateInfoRow}>
-            <Text style={styles.dateInfoLabel}>{formatSelected(selectedDate)}</Text>
-            <Text style={styles.trackedLabel}>{trackedCount} habits tracked</Text>
+            <Text style={styles.dateInfoLabel}>{formatSelected(selectedDate, i18n)}</Text>
+            <Text style={styles.trackedLabel}>{trackedCount} {i18n.habitsTracked}</Text>
           </View>
 
           {/* Habit list */}
@@ -154,14 +150,14 @@ export default function CalendarPage() {
             const isFuture = selectedDate > todayStr;
 
             let badge: { label: string; color: string; bg: string } | null = null;
-            if (isDone) badge = { label: '✓ Done', color: '#4ade80', bg: 'rgba(34,197,94,0.20)' };
-            else if (isMissed) badge = { label: '✗ Missed', color: '#f87171', bg: 'rgba(239,68,68,0.20)' };
+            if (isDone) badge = { label: `✓ ${i18n.statusDone}`, color: '#4ade80', bg: 'rgba(34,197,94,0.20)' };
+            else if (isMissed) badge = { label: `✗ ${i18n.statusMissed}`, color: '#f87171', bg: 'rgba(239,68,68,0.20)' };
 
             const typeLabel = habit.type === 'done'
-              ? 'Daily · Morning'
+              ? i18n.dailyMorning
               : habit.type === 'time'
-              ? 'Weekly Goal'
-              : 'Daily';
+              ? i18n.weeklyGoalLabel
+              : i18n.daily;
 
             return (
               <View key={habit.id} style={styles.habitCard}>

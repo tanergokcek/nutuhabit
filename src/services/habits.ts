@@ -43,6 +43,10 @@ export async function fetchHabits(userId: string): Promise<Habit[]> {
         habit.limitPeriod = data.limitPeriod || 'daily';
       }
 
+      // Reminder data
+      habit.reminderEnabled = data.reminderEnabled || false;
+      habit.reminderTime = data.reminderTime || '08:00';
+
       habits.push(habit as Habit);
     });
 
@@ -116,6 +120,31 @@ export async function deleteHabitService(habitId: string): Promise<void> {
     await deleteDoc(doc(db, 'habits', habitId));
   } catch (error) {
     console.error("Error deleting habit:", error);
+  }
+}
+
+export async function resetUserData(userId: string) {
+  try {
+    // 1. Delete habits
+    const habitsQ = query(collection(db, 'habits'), where('userId', '==', userId));
+    const habitsSnapshot = await getDocs(habitsQ);
+    const deleteHabitPromises = habitsSnapshot.docs.map(d => deleteDoc(d.ref));
+    
+    // 2. Delete logs from all 3 collections
+    const collections = ['logs_done', 'logs_time', 'logs_bad'];
+    const deleteLogPromises: Promise<void>[] = [];
+    
+    for (const col of collections) {
+      const q = query(collection(db, col), where('UserId', '==', userId));
+      const snapshot = await getDocs(q);
+      snapshot.docs.forEach(d => deleteLogPromises.push(deleteDoc(d.ref)));
+    }
+    
+    await Promise.all([...deleteHabitPromises, ...deleteLogPromises]);
+    return true;
+  } catch (error) {
+    console.error("Error resetting user data:", error);
+    return false;
   }
 }
 

@@ -57,19 +57,32 @@ export const useHabitStore = create<HabitState>((set, get) => ({
   setLogs: (logs) => set({ logs }),
 
   addHabit: (habitData) => {
-    // Firebase implementation will go here
+    const newHabit: Habit = {
+      id: `local-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      isArchived: false,
+      sortOrder: get().habits.length,
+      userId: useAuthStore.getState().user?.id || 'local-user',
+      ...habitData,
+    } as Habit;
+    set((state) => ({ habits: [newHabit, ...state.habits] }));
   },
 
   updateHabit: (id, updates) => {
-    // Firebase implementation will go here
+    set((state) => ({
+      habits: state.habits.map((h) => h.id === id ? { ...h, ...updates, updatedAt: new Date().toISOString() } : h)
+    }));
   },
 
   deleteHabit: (id) => {
-    // Firebase implementation will go here
+    set((state) => ({
+      habits: state.habits.filter((h) => h.id !== id)
+    }));
   },
 
   toggleLog: (habitId, date) => {
-    // Firebase implementation will go here
+    // This is typically handled by updateLog or a dedicated service call
   },
 
   updateLog: (habitId, date, updates) => {

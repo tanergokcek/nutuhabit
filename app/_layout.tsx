@@ -17,6 +17,8 @@ import * as SplashScreen from 'expo-splash-screen';
 import { COLORS } from '@/constants/colors';
 import { useThemeStore } from '@/src/store/useThemeStore';
 import { useAuthStore } from '@/src/store/useAuthStore';
+import { requestNotificationPermissions } from '@/src/services/notifications';
+
 
 SplashScreen.preventAutoHideAsync();
 
@@ -85,7 +87,10 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    if (fontsLoaded) SplashScreen.hideAsync();
+    if (fontsLoaded) {
+      SplashScreen.hideAsync();
+      requestNotificationPermissions();
+    }
   }, [fontsLoaded]);
 
   if (!fontsLoaded) return null;

@@ -27,7 +27,7 @@ interface MenuItem {
 
 const MENU_ITEMS: MenuItem[] = [
   {
-    key: 'aiCoach', label: 'AI Coach',
+    key: 'aiCoach', label: 'AI Koçunuz',
     icon: 'star', iconColor: '#e9d5ff',
     gradStart: '#7c3aed', gradEnd: '#4c1d95',
     badge: true, route: '/aiCoach',
@@ -95,7 +95,13 @@ export function MenuDropdown({ visible, onClose }: MenuDropdownProps) {
           <View style={styles.cardBorder} />
 
           {MENU_ITEMS.map((item, index) => {
-            const label = item.key === 'reminder' ? i18n.menuReminder : item.label;
+            let label = item.label;
+            if (item.key === 'aiCoach') label = i18n.menuAICoach;
+            if (item.key === 'takvim') label = i18n.menuCalendar;
+            if (item.key === 'reminder') label = i18n.menuReminder;
+            if (item.key === 'notlar') label = i18n.menuNotes;
+            if (item.key === 'todos') label = i18n.menuTodos;
+            if (item.key === 'ayarlar') label = i18n.menuSettings;
             const isLast = index === MENU_ITEMS.length - 1;
             return (
               <React.Fragment key={item.key}>

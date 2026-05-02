@@ -18,13 +18,15 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTodoStore, Todo, TodoPriority } from '@/src/store/useTodoStore';
 import { useAuthStore } from '@/src/store/useAuthStore';
+import { useTranslation } from '@/src/hooks/useTranslation';
+
 
 // ── Sabitler ──────────────────────────────────────────────────────────────────
-const PRIORITY_CONFIG: Record<TodoPriority, { label: string; color: string; bg: string }> = {
-  high:   { label: 'Yüksek', color: '#f87171', bg: 'rgba(239,68,68,0.18)' },
-  normal: { label: 'Normal', color: '#a78bfa', bg: 'rgba(139,92,246,0.18)' },
-  low:    { label: 'Düşük',  color: '#6ee7b7', bg: 'rgba(52,211,153,0.15)' },
-};
+const PRIORITY_CONFIG = (i18n: any): Record<TodoPriority, { label: string; color: string; bg: string }> => ({
+  high:   { label: i18n.priorityHigh, color: '#f87171', bg: 'rgba(239,68,68,0.18)' },
+  normal: { label: i18n.priorityNormal, color: '#a78bfa', bg: 'rgba(139,92,246,0.18)' },
+  low:    { label: i18n.priorityLow, color: '#6ee7b7', bg: 'rgba(52,211,153,0.15)' },
+});
 
 // ── Yardımcı ──────────────────────────────────────────────────────────────────
 function formatDate(iso: string): string {
@@ -44,7 +46,8 @@ function TodoRow({
   onDelete: () => void;
   onEdit: () => void;
 }) {
-  const p = PRIORITY_CONFIG[todo.priority];
+  const i18n = useTranslation();
+  const p = PRIORITY_CONFIG(i18n)[todo.priority];
   return (
     <View style={[styles.row, todo.completed && styles.rowDone]}>
       {/* Sol — öncelik şeridi */}
@@ -103,6 +106,7 @@ function EditModal({
   onClose: () => void;
   isEdit: boolean;
 }) {
+  const i18n = useTranslation();
   const [text, setText] = useState(initialText);
   const [priority, setPriority] = useState<TodoPriority>(initialPriority);
 
@@ -128,12 +132,12 @@ function EditModal({
 
           <View style={styles.handle} />
 
-          <Text style={styles.modalTitle}>{isEdit ? 'Görevi Düzenle' : 'Yeni Görev'}</Text>
+          <Text style={styles.modalTitle}>{isEdit ? i18n.editTask : i18n.newTask}</Text>
 
           {/* Metin girişi */}
           <TextInput
             style={styles.input}
-            placeholder="Ne yapılacak?"
+            placeholder={i18n.taskPlaceholder}
             placeholderTextColor="rgba(255,255,255,0.30)"
             value={text}
             onChangeText={setText}
@@ -143,10 +147,10 @@ function EditModal({
           />
 
           {/* Öncelik seçici */}
-          <Text style={styles.priorityLabel}>Öncelik</Text>
+          <Text style={styles.priorityLabel}>{i18n.priorityLabel}</Text>
           <View style={styles.priorityRow}>
-            {(Object.keys(PRIORITY_CONFIG) as TodoPriority[]).map((p) => {
-              const cfg = PRIORITY_CONFIG[p];
+            {(Object.keys(PRIORITY_CONFIG(i18n)) as TodoPriority[]).map((p) => {
+              const cfg = PRIORITY_CONFIG(i18n)[p];
               const active = priority === p;
               return (
                 <TouchableOpacity
@@ -175,7 +179,7 @@ function EditModal({
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
             >
               <Ionicons name={isEdit ? 'checkmark-done' : 'add'} size={18} color="#fff" />
-              <Text style={styles.saveBtnText}>{isEdit ? 'Güncelle' : 'Ekle'}</Text>
+              <Text style={styles.saveBtnText}>{isEdit ? i18n.updateBtn : i18n.addBtn}</Text>
             </LinearGradient>
           </TouchableOpacity>
         </Pressable>
@@ -189,6 +193,7 @@ type Filter = 'all' | 'active' | 'done';
 
 export default function TodosScreen() {
   const router = useRouter();
+  const i18n = useTranslation();
   const { todos, addTodo, toggleTodo, deleteTodo, updateTodo, clearCompleted, loadTodos, isLoading } = useTodoStore();
   const user = useAuthStore((s) => s.user);
   const userId = user?.id ?? '';
@@ -238,17 +243,17 @@ export default function TodosScreen() {
   };
 
   const handleDelete = (id: string) => {
-    Alert.alert('Görevi Sil', 'Bu görevi silmek istiyor musun?', [
-      { text: 'İptal', style: 'cancel' },
-      { text: 'Sil', style: 'destructive', onPress: () => deleteTodo(id) },
+    Alert.alert(i18n.deleteTaskTitle, i18n.deleteTaskConfirm, [
+      { text: i18n.cancel, style: 'cancel' },
+      { text: i18n.deleteLabel, style: 'destructive', onPress: () => deleteTodo(id) },
     ]);
   };
 
   const handleClearDone = () => {
     if (doneCount === 0) return;
-    Alert.alert('Tamamlananları Temizle', `${doneCount} tamamlanmış görev silinecek.`, [
-      { text: 'İptal', style: 'cancel' },
-      { text: 'Temizle', style: 'destructive', onPress: () => clearCompleted(userId) },
+    Alert.alert(i18n.clearDoneTitle, i18n.clearDoneConfirm.replace('%n', String(doneCount)), [
+      { text: i18n.cancel, style: 'cancel' },
+      { text: i18n.clearLabel, style: 'destructive', onPress: () => clearCompleted(userId) },
     ]);
   };
 
@@ -264,9 +269,9 @@ export default function TodosScreen() {
             <Ionicons name="chevron-back" size={22} color="rgba(255,255,255,0.80)" />
           </TouchableOpacity>
           <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>Yapılacaklar</Text>
+            <Text style={styles.headerTitle}>{i18n.todosTitle}</Text>
             <Text style={styles.headerSub}>
-              {activeCount} bekliyor · {doneCount} tamamlandı
+              {i18n.todoStatus.replace('%a', String(activeCount)).replace('%d', String(doneCount))}
             </Text>
           </View>
           <TouchableOpacity style={styles.clearBtn} onPress={handleClearDone} activeOpacity={0.7}>
@@ -277,7 +282,7 @@ export default function TodosScreen() {
         {/* Filtreler */}
         <View style={styles.filterRow}>
           {(['all', 'active', 'done'] as Filter[]).map((f) => {
-            const labels: Record<Filter, string> = { all: 'Tümü', active: 'Bekleyenler', done: 'Tamamlananlar' };
+            const labels: Record<Filter, string> = { all: i18n.allNotes, active: i18n.activeFilter, done: i18n.doneFilter };
             const active = filter === f;
             return (
               <TouchableOpacity
@@ -310,15 +315,15 @@ export default function TodosScreen() {
           {isLoading ? (
             <View style={styles.emptyWrap}>
               <ActivityIndicator size="large" color="rgba(192,132,252,0.85)" />
-              <Text style={styles.emptyText}>Görevler yükleniyor…</Text>
+              <Text style={styles.emptyText}>{i18n.loadingTasks}</Text>
             </View>
           ) : filtered.length === 0 ? (
             <View style={styles.emptyWrap}>
               <Ionicons name="clipboard-outline" size={52} color="rgba(255,255,255,0.15)" />
               <Text style={styles.emptyText}>
-                {filter === 'done' ? 'Henüz tamamlanan görev yok' :
-                 filter === 'active' ? 'Bekleyen görev yok, harika!' :
-                 'Listen boş, yeni görev ekle'}
+                {filter === 'done' ? i18n.noDoneTasks :
+                 filter === 'active' ? i18n.noActiveTasks :
+                 i18n.emptyTodoList}
               </Text>
             </View>
           ) : (

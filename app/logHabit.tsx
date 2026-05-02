@@ -13,6 +13,7 @@ import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useTranslation } from '@/src/hooks/useTranslation';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
@@ -31,9 +32,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // ─── Haftalık şerit (interaktif) ─────────────────────────────────────────────
-const DAY_SHORT = ['PZT', 'SAL', 'ÇAR', 'PER', 'CUM', 'CMT', 'PAZ'];
-
-function getWeekDays() {
+function getWeekDays(i18n: any) {
+  const DAY_SHORT = i18n.weekDays;
   const today = new Date();
   const dow = today.getDay();
   const mondayOffset = dow === 0 ? -6 : 1 - dow;
@@ -47,7 +47,7 @@ function getWeekDays() {
       dateStr: `${y}-${mo}-${da}`,
       label: DAY_SHORT[i],
       dayNum: d.getDate(),
-      month: d.toLocaleString('en', { month: 'short' }).toUpperCase(),
+      month: d.toLocaleString(i18n.language === 'tr' ? 'tr-TR' : 'en-US', { month: 'short' }).toUpperCase(),
       isToday: d.toDateString() === today.toDateString(),
     };
   });
@@ -59,7 +59,8 @@ interface WeekStripProps {
 }
 
 function WeekStrip({ selectedDate, onSelectDate }: WeekStripProps) {
-  const days = getWeekDays();
+  const i18n = useTranslation();
+  const days = getWeekDays(i18n);
   return (
     <View style={weekStyles.container}>
       {days.map((day, i) => {
@@ -128,10 +129,11 @@ interface SavedResult {
   type: HabitType;
 }
 
-const WEEK_DAY_NAMES_OV = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
-const WEEK_SHORT_OV = ['Pt', 'Sa', 'Ça', 'Pe', 'Cu', 'Ct', 'Pz'];
-
 function StreakOverlay({ result, onDismiss }: { result: SavedResult; onDismiss: () => void }) {
+  const i18n = useTranslation();
+  const WEEK_DAY_NAMES_OV = i18n.weekDaysFull;
+  const WEEK_SHORT_OV = i18n.weekDays;
+
   const todayName = WEEK_DAY_NAMES_OV[new Date().getDay()];
   const todayWeekIdx = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1;
   const streakStartIdx = todayWeekIdx - (result.streak - 1);
@@ -198,7 +200,7 @@ function StreakOverlay({ result, onDismiss }: { result: SavedResult; onDismiss: 
         <Animated.View style={[overlayStyles.bigPill, { transform: [{ scale: pillScale }] }]}>
           <Text style={overlayStyles.bigPillFire}>🔥</Text>
           <Text style={overlayStyles.bigPillNum}>{result.streak}</Text>
-          <Text style={overlayStyles.bigPillLabel}>. gün</Text>
+          <Text style={overlayStyles.bigPillLabel}>{i18n.streakDayLabel}</Text>
         </Animated.View>
 
         {/* Günün adı */}
@@ -237,10 +239,10 @@ function StreakOverlay({ result, onDismiss }: { result: SavedResult; onDismiss: 
         {/* Alt mesaj */}
         <Animated.View style={[overlayStyles.msgWrap, { opacity: contentO }]}>
           <Text style={overlayStyles.msgTitle}>
-            {isFirstDay ? 'İlk gün! 🎉' : 'Harika gidiyorsun!'}
+            {isFirstDay ? i18n.isFirstDayTitle : i18n.greatJobTitle}
           </Text>
           <Text style={overlayStyles.msgSub}>
-            {isFirstDay ? 'Harika başlangıç, devam et!' : 'Serini kırmıyorsun, süper! 💪'}
+            {isFirstDay ? i18n.firstDaySub : i18n.keepGoingSub}
           </Text>
         </Animated.View>
 
@@ -253,7 +255,7 @@ function StreakOverlay({ result, onDismiss }: { result: SavedResult; onDismiss: 
           >
             <LinearGradient colors={['#9333ea', '#6d28d9']} style={StyleSheet.absoluteFillObject} />
             <Ionicons name="checkmark" size={16} color="#fff" />
-            <Text style={overlayStyles.btnText}>Devam Et</Text>
+            <Text style={overlayStyles.btnText}>{i18n.continueBtn}</Text>
           </TouchableOpacity>
         </Animated.View>
       </Animated.View>
@@ -391,23 +393,22 @@ const overlayStyles = StyleSheet.create({
   },
 });
 
-// ─── Ana ekran ────────────────────────────────────────────────────────────────
-const TYPE_BUTTONS: { key: HabitType; label: string }[] = [
-  { key: 'done', label: 'YAPILDI' },
-  { key: 'time', label: 'SÜRE' },
-  { key: 'bad', label: 'KÖTÜ ALIŞKANLIK' },
-];
-
-const STATUS_OPTIONS: { key: LogStatus; label: string; style: 'dashed' | 'outline' | 'filled' }[] = [
-  { key: 'failed', label: 'Yapmadım.', style: 'dashed' },
-  { key: 'excused', label: 'Mazeretliyim.', style: 'outline' },
-  { key: 'done', label: 'Yaptım.', style: 'filled' },
-];
-
-
 export default function LogHabitScreen() {
   const router = useRouter();
+  const i18n = useTranslation();
   const params = useLocalSearchParams<{ habitId?: string; type?: HabitType; date?: string }>();
+
+  const TYPE_BUTTONS: { key: HabitType; label: string }[] = [
+    { key: 'done', label: i18n.typeDone },
+    { key: 'time', label: i18n.typeTime },
+    { key: 'bad', label: i18n.typeBad },
+  ];
+
+  const STATUS_OPTIONS: { key: LogStatus; label: string; style: 'dashed' | 'outline' | 'filled' }[] = [
+    { key: 'failed', label: i18n.statusDidnt, style: 'dashed' },
+    { key: 'excused', label: i18n.statusExcused, style: 'outline' },
+    { key: 'done', label: i18n.statusDid, style: 'filled' },
+  ];
   
   const { habits, updateLog, lastUsedHabitId, setLastUsedHabitId } = useHabitStore();
   const { user, isGuest } = useAuthStore();
@@ -504,7 +505,7 @@ export default function LogHabitScreen() {
         const prevCount = prevLog?.usedCount ?? 0;
         const newCount = prevCount + (didIt ? 1 : 0);
         updateLog(habit.id, selectedDate, {
-          usedCount: didIt ? 1 : 0,
+          usedCount: didIt ? newCount : prevCount,
           status: newCount >= badHabit.limitCount ? 'failed' : 'done',
           note: noteValue,
         });
@@ -537,7 +538,7 @@ export default function LogHabitScreen() {
           const prevLog = useHabitStore.getState().getTodayLog(habit.id);
           const prevCount = prevLog?.usedCount ?? 0;
           const newCount = prevCount + (didIt ? 1 : 0);
-          logData.usedCount = didIt ? 1 : 0;
+          logData.usedCount = didIt ? newCount : prevCount;
           logData.status = newCount >= badHabit.limitCount ? 'failed' : 'done';
         } else {
           logData.status = didIt ? 'failed' : 'done';
@@ -617,14 +618,14 @@ export default function LogHabitScreen() {
                   <Ionicons name="chevron-back" size={20} color="#fff" />
                 </LinearGradient>
               </TouchableOpacity>
-              <Text style={styles.headerTitle}>KAYIT</Text>
+              <Text style={styles.headerTitle}>{i18n.logHabitTitle}</Text>
               <View style={{ width: 44 }} />
             </View>
 
             <View style={styles.divider} />
 
             {/* ── Choose Habit Type ── */}
-            <Text style={styles.centerLabel}>Alışkanlık Türü Seç</Text>
+            <Text style={styles.centerLabel}>{i18n.habitTypeSelect}</Text>
             <View style={styles.typeRow}>
               {TYPE_BUTTONS.map((btn) => {
                 const isActive = selectedType === btn.key;
@@ -635,7 +636,7 @@ export default function LogHabitScreen() {
                       const newType = btn.key;
                       setSelectedType(newType);
                       setStatus(newType === 'done' ? 'done' : newType === 'bad' ? 'failed' : null);
-                      setOpenPanel(null);
+                      setOpenPanel('notes');
                       // lastUsedHabitId bu tipe aitse koru, yoksa en son eklenenini seç
                       const typeHabits = activeHabits.filter((h) => h.type === newType);
                       const keepLast = lastUsedHabitId && typeHabits.find((h) => h.id === lastUsedHabitId);
@@ -666,9 +667,9 @@ export default function LogHabitScreen() {
             {/* ── Habit Seçimi ── */}
             {filteredHabits.length === 0 ? (
               <View style={styles.emptyHabits}>
-                <Text style={styles.emptyHabitsText}>Bu tipte alışkanlık yok.</Text>
+                <Text style={styles.emptyHabitsText}>{i18n.noHabitOfType}</Text>
                 <TouchableOpacity onPress={() => router.push('/habit/new')} activeOpacity={0.75}>
-                  <Text style={styles.emptyHabitsLink}>+ Yeni alışkanlık ekle</Text>
+                  <Text style={styles.emptyHabitsLink}>{i18n.addNewHabitLink}</Text>
                 </TouchableOpacity>
               </View>
             ) : (
@@ -686,7 +687,7 @@ export default function LogHabitScreen() {
                         <Text style={styles.habitPickerName} numberOfLines={1}>{sel.name}</Text>
                       </View>
                     ) : (
-                      <Text style={styles.habitPickerPlaceholder}>Alışkanlık seç…</Text>
+                      <Text style={styles.habitPickerPlaceholder}>{i18n.habitSelectPlaceholder}</Text>
                     );
                   })()}
                   <Ionicons name="chevron-down" size={14} color="rgba(255,255,255,0.38)" />
@@ -705,7 +706,7 @@ export default function LogHabitScreen() {
                         colors={['rgba(60,20,130,0.92)', 'rgba(20,8,60,0.96)']}
                         style={StyleSheet.absoluteFillObject}
                       />
-                      <Text style={styles.pickerTitle}>Alışkanlık Seç</Text>
+                      <Text style={styles.pickerTitle}>{i18n.habitPickerTitle}</Text>
                       <View style={styles.pickerDivider} />
                       {filteredHabits.map((h) => {
                         const isActive = selectedHabitId === h.id;
@@ -735,7 +736,7 @@ export default function LogHabitScreen() {
               <>
                 {/* Notes expandable */}
                 <TouchableOpacity style={styles.expandRow} onPress={() => togglePanel('notes')} activeOpacity={0.7}>
-                  <Text style={styles.expandText}>Notlar</Text>
+                  <Text style={styles.expandText}>{i18n.notesLabel}</Text>
                   <Ionicons name={openPanel === 'notes' ? 'chevron-up' : 'chevron-down'} size={13} color="rgba(255,255,255,0.38)" />
                 </TouchableOpacity>
                 <View style={styles.expandDivider} />
@@ -744,7 +745,7 @@ export default function LogHabitScreen() {
                     style={styles.notesInput}
                     value={notes}
                     onChangeText={setNotes}
-                    placeholder="Bugün nasıl geçti?..."
+                    placeholder={i18n.notesPlaceholder}
                     placeholderTextColor="rgba(255,255,255,0.22)"
                     multiline numberOfLines={3} textAlignVertical="top"
                   />
@@ -762,7 +763,7 @@ export default function LogHabitScreen() {
                   <View style={styles.dateLabelRow}>
                     <Ionicons name="calendar-outline" size={13} color="rgba(192,132,252,0.70)" />
                     <Text style={styles.dateLabelText}>
-                      {selectedDate === getTodayString() ? 'Bugün' : selectedDate}
+                      {selectedDate === getTodayString() ? i18n.dateToday : selectedDate}
                     </Text>
                   </View>
 
@@ -775,7 +776,7 @@ export default function LogHabitScreen() {
                       </TouchableOpacity>
                       <View style={styles.spinValBox}>
                         <Text style={styles.spinVal}>{String(durH).padStart(2, '0')}</Text>
-                        <Text style={styles.spinUnit}>saat</Text>
+                        <Text style={styles.spinUnit}>{i18n.hourUnit}</Text>
                       </View>
                       <TouchableOpacity style={styles.spinBtn} onPress={() => setDurH((h) => Math.max(0, h - 1))} activeOpacity={0.7}>
                         <Ionicons name="chevron-down" size={24} color="rgba(192,132,252,0.85)" />
@@ -791,7 +792,7 @@ export default function LogHabitScreen() {
                       </TouchableOpacity>
                       <View style={styles.spinValBox}>
                         <Text style={styles.spinVal}>{String(durM).padStart(2, '0')}</Text>
-                        <Text style={styles.spinUnit}>dakika</Text>
+                        <Text style={styles.spinUnit}>{i18n.minuteUnit}</Text>
                       </View>
                       <TouchableOpacity style={styles.spinBtn} onPress={() => setDurM((m) => (m - 5 + 60) % 60)} activeOpacity={0.7}>
                         <Ionicons name="chevron-down" size={24} color="rgba(192,132,252,0.85)" />
@@ -802,10 +803,10 @@ export default function LogHabitScreen() {
                   {/* Hızlı seçim */}
                   <View style={styles.presetRow}>
                     {[
-                      { label: '30 dk', h: 0, m: 30 },
-                      { label: '1 saat', h: 1, m: 0 },
-                      { label: '1.5 saat', h: 1, m: 30 },
-                      { label: '2 saat', h: 2, m: 0 },
+                      { label: `30 ${i18n.minUnitShort}`, h: 0, m: 30 },
+                      { label: `1 ${i18n.hourUnitShort}`, h: 1, m: 0 },
+                      { label: `1.5 ${i18n.hourUnitShort}`, h: 1, m: 30 },
+                      { label: `2 ${i18n.hourUnitShort}`, h: 2, m: 0 },
                     ].map((p) => {
                       const isActive = durH === p.h && durM === p.m;
                       return (
@@ -825,13 +826,13 @@ export default function LogHabitScreen() {
 
                   {/* Süre özeti */}
                   <View style={styles.elapsedRow}>
-                    <Text style={styles.elapsedLabel}>Geçen süre</Text>
+                    <Text style={styles.elapsedLabel}>{i18n.elapsedTimeLabel}</Text>
                     <Text style={[styles.elapsedVal, elapsedMinutes === 0 && styles.elapsedValZero]}>
                       {elapsedMinutes === 0
-                        ? '0 dakika'
+                        ? `0 ${i18n.minuteUnit}`
                         : elapsedMinutes < 60
-                          ? `${elapsedMinutes} dakika`
-                          : `${Math.floor(elapsedMinutes / 60)} saat ${elapsedMinutes % 60 > 0 ? `${elapsedMinutes % 60} dakika` : ''}`}
+                          ? `${elapsedMinutes} ${i18n.minuteUnit}`
+                          : `${Math.floor(elapsedMinutes / 60)} ${i18n.hourUnit} ${elapsedMinutes % 60 > 0 ? `${elapsedMinutes % 60} ${i18n.minuteUnit}` : ''}`}
                     </Text>
                   </View>
 
@@ -841,7 +842,7 @@ export default function LogHabitScreen() {
               <>
                 {/* ══ DONE / BAD layout ══ */}
                 <TouchableOpacity style={styles.expandRow} onPress={() => togglePanel('notes')} activeOpacity={0.7}>
-                  <Text style={styles.expandText}>Notlar</Text>
+                  <Text style={styles.expandText}>{i18n.notesLabel}</Text>
                   <Ionicons name={openPanel === 'notes' ? 'chevron-up' : 'chevron-down'} size={13} color="rgba(255,255,255,0.38)" />
                 </TouchableOpacity>
                 <View style={styles.expandDivider} />
@@ -850,7 +851,7 @@ export default function LogHabitScreen() {
                     style={styles.notesInput}
                     value={notes}
                     onChangeText={setNotes}
-                    placeholder="Bugün nasıl geçti?..."
+                    placeholder={i18n.notesPlaceholder}
                     placeholderTextColor="rgba(255,255,255,0.22)"
                     multiline
                     numberOfLines={3}
@@ -872,7 +873,7 @@ export default function LogHabitScreen() {
                         {status === 'failed' && <Ionicons name="checkmark" size={22} color="#fff" />}
                       </View>
                       <Text style={[styles.statusLabel, status === 'failed' && styles.statusLabelActive]}>
-                        Yaptım.
+                        {i18n.statusDid}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -910,7 +911,7 @@ export default function LogHabitScreen() {
             {/* ── Footer ── */}
             <View style={styles.footer}>
               <TouchableOpacity style={styles.cancelBtn} onPress={() => router.back()} activeOpacity={0.75}>
-                <Text style={styles.cancelText}>İptal</Text>
+                <Text style={styles.cancelText}>{i18n.cancelBtn}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.saveBtn} onPress={handleSave} activeOpacity={0.85}>
                 <LinearGradient
@@ -918,7 +919,7 @@ export default function LogHabitScreen() {
                   style={styles.saveGrad}
                   start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
                 >
-                  <Text style={styles.saveText}>Kaydet</Text>
+                  <Text style={styles.saveText}>{i18n.saveBtn}</Text>
                 </LinearGradient>
               </TouchableOpacity>
             </View>

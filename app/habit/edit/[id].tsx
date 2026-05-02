@@ -23,16 +23,21 @@ import { HABIT_ICONS } from '@/constants/templates';
 import { COLORS } from '@/constants/colors';
 import { LAYOUT } from '@/constants/layout';
 import { FONTS } from '@/constants/fonts';
+import { updateHabitService, deleteHabitService } from '@/src/services/habits';
+import { scheduleHabitReminder, cancelHabitReminder } from '@/src/services/notifications';
+import { Modal } from 'react-native';
+import { useTranslation } from '@/src/hooks/useTranslation';
 
-const TYPE_OPTIONS: { type: HabitType; label: string; emoji: string; color: string }[] = [
-  { type: 'done', label: 'Yapıldı', emoji: '✅', color: COLORS.success },
-  { type: 'time', label: 'Zaman', emoji: '⏱', color: COLORS.primary[400] },
-  { type: 'bad', label: 'Kötü Alışkanlık', emoji: '🚫', color: COLORS.danger },
+const TYPE_OPTIONS = (i18n: any): { type: HabitType; label: string; emoji: string; color: string }[] => [
+  { type: 'done', label: i18n.typeDone, emoji: '✅', color: COLORS.success },
+  { type: 'time', label: i18n.typeTime, emoji: '⏱', color: COLORS.primary[400] },
+  { type: 'bad', label: i18n.typeBad, emoji: '🚫', color: COLORS.danger },
 ];
 
 export default function EditHabitScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const i18n = useTranslation();
   const { habits, updateHabit, deleteHabit } = useHabitStore();
 
   const habit = habits.find((h) => h.id === id);
@@ -58,16 +63,21 @@ export default function EditHabitScreen() {
   const [showIconPicker, setShowIconPicker] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Reminder state
+  const [reminderEnabled, setReminderEnabled] = useState(habit?.reminderEnabled ?? false);
+  const [reminderTime, setReminderTime] = useState(habit?.reminderTime ?? '08:00');
+  const [showTimePicker, setShowTimePicker] = useState(false);
+
   if (!habit) {
     return (
       <View style={styles.container}>
         <LinearGradient colors={['#13043e', '#1c0a4a']} style={StyleSheet.absoluteFillObject} />
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.notFound}>
-            <Text style={styles.notFoundText}>Alışkanlık bulunamadı</Text>
+            <Text style={styles.notFoundText}>{i18n.habitNotFound}</Text>
             <TouchableOpacity onPress={() => router.back()} style={styles.backBtnWrapper}>
               <LinearGradient colors={['#9333ea', '#7c3aed']} style={styles.backBtnGrad}>
-                <Text style={styles.backBtnText}>Geri Dön</Text>
+                <Text style={styles.backBtnText}>{i18n.backBtn}</Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>
@@ -112,10 +122,22 @@ export default function EditHabitScreen() {
         if (limitType === 'count') updates.limitCount = parseInt(limitCount, 10);
         else updates.limitMinutes = parseInt(limitMinutes, 10);
       }
+      
+      updates.reminderEnabled = reminderEnabled;
+      updates.reminderTime = reminderTime;
+
+      await updateHabitService(habit.id, updates as Partial<typeof habit>);
+      
+      if (reminderEnabled) {
+        await scheduleHabitReminder(habit.id, name.trim(), reminderTime);
+      } else {
+        await cancelHabitReminder(habit.id);
+      }
+
       updateHabit(habit.id, updates as Parameters<typeof updateHabit>[1]);
       router.back();
     } catch {
-      Alert.alert('Hata', 'Alışkanlık güncellenemedi.');
+      Alert.alert(i18n.errorTitle, i18n.habitUpdateError);
     } finally {
       setIsSaving(false);
     }
@@ -123,14 +145,16 @@ export default function EditHabitScreen() {
 
   const handleDelete = () => {
     Alert.alert(
-      'Alışkanlığı Sil',
-      `"${habit.name}" ve tüm kayıtları silinecek. Bu işlem geri alınamaz.`,
+      i18n.deleteHabitTitle,
+      i18n.deleteHabitFullConfirm.replace('%s', habit.name),
       [
-        { text: 'Vazgeç', style: 'cancel' },
+        { text: i18n.cancel, style: 'cancel' },
         {
-          text: 'Sil',
+          text: i18n.deleteLabel,
           style: 'destructive',
-          onPress: () => {
+          onPress: async () => {
+            await cancelHabitReminder(habit.id);
+            await deleteHabitService(habit.id);
             deleteHabit(habit.id);
             router.dismissAll();
           },
@@ -139,7 +163,7 @@ export default function EditHabitScreen() {
     );
   };
 
-  const currentType = TYPE_OPTIONS.find((t) => t.type === type);
+  const currentType = TYPE_OPTIONS(i18n).find((t) => t.type === type);
 
   return (
     <View style={styles.container}>
@@ -171,7 +195,7 @@ export default function EditHabitScreen() {
                 <Ionicons name="close" size={20} color="rgba(255,255,255,0.80)" />
               </LinearGradient>
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Alışkanlığı Düzenle</Text>
+            <Text style={styles.headerTitle}>{i18n.editHabitTitle}</Text>
             <View style={{ width: 36 }} />
           </View>
 
@@ -185,7 +209,7 @@ export default function EditHabitScreen() {
               <View style={[styles.typeBadge, { backgroundColor: `${currentType.color}18`, borderColor: `${currentType.color}40` }]}>
                 <Text style={styles.typeBadgeEmoji}>{currentType.emoji}</Text>
                 <Text style={[styles.typeBadgeText, { color: currentType.color }]}>
-                  {currentType.label} modu (değiştirilemez)
+                  {currentType.label} {i18n.modeCantChange}
                 </Text>
               </View>
             ) : null}
@@ -194,22 +218,22 @@ export default function EditHabitScreen() {
             <Input
               value={name}
               onChangeText={setName}
-              label="Alışkanlık Adı"
-              placeholder="Alışkanlık adı"
+              label={i18n.habitNameLabel}
+              placeholder={i18n.habitNamePlaceholder}
               error={nameError}
               maxLength={50}
             />
 
             {/* Icon picker */}
             <View style={styles.section}>
-              <Text style={styles.sectionLabel}>İKON</Text>
+              <Text style={styles.sectionLabel}>{i18n.iconLabel.toUpperCase()}</Text>
               <TouchableOpacity
                 onPress={() => setShowIconPicker(!showIconPicker)}
                 style={styles.iconPreview}
                 activeOpacity={0.75}
               >
                 <Text style={styles.iconPreviewEmoji}>{icon}</Text>
-                <Text style={styles.iconPreviewLabel}>İkonu değiştir</Text>
+                <Text style={styles.iconPreviewLabel}>{i18n.changeIcon}</Text>
                 <Ionicons
                   name={showIconPicker ? 'chevron-up' : 'chevron-down'}
                   size={16}
@@ -241,7 +265,7 @@ export default function EditHabitScreen() {
               <Input
                 value={goalMinutes}
                 onChangeText={setGoalMinutes}
-                label="Hedef Süre (dakika)"
+                label={i18n.habitGoalMinutesLabel}
                 placeholder="30"
                 keyboardType="numeric"
                 error={goalError}
@@ -253,13 +277,55 @@ export default function EditHabitScreen() {
               <Input
                 value={limitType === 'count' ? limitCount : limitMinutes}
                 onChangeText={limitType === 'count' ? setLimitCount : setLimitMinutes}
-                label={limitType === 'count' ? "Limit (kez)" : "Günlük Limit (dakika)"}
+                label={limitType === 'count' ? i18n.habitLimitCountLabel : i18n.habitLimitMinutesLabel}
                 placeholder={limitType === 'count' ? "5" : "60"}
                 keyboardType="numeric"
                 error={limitError}
                 maxLength={4}
               />
             ) : null}
+
+            {/* Reminder */}
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>{i18n.reminderLabel.toUpperCase()}</Text>
+              <View style={styles.reminderCard}>
+                <View style={styles.reminderRow}>
+                  <Ionicons name="notifications-outline" size={20} color="rgba(255,255,255,0.6)" />
+                  <Text style={styles.reminderText}>{i18n.reminderLabel}</Text>
+                  <TouchableOpacity 
+                    onPress={() => setReminderEnabled(!reminderEnabled)}
+                    style={[
+                      styles.toggleBtn, 
+                      { backgroundColor: reminderEnabled ? '#7c3aed' : 'rgba(255,255,255,0.1)' }
+                    ]}
+                  >
+                    <View style={[styles.toggleCircle, { transform: [{ translateX: reminderEnabled ? 20 : 0 }] }]} />
+                  </TouchableOpacity>
+                </View>
+
+                {reminderEnabled && (
+                  <TouchableOpacity 
+                    style={styles.timeSelectBtn}
+                    onPress={() => setShowTimePicker(true)}
+                  >
+                    <Text style={styles.timeSelectLabel}>{i18n.reminderTimeSelectLabel}</Text>
+                    <Text style={styles.timeSelectValue}>{reminderTime}</Text>
+                    <Ionicons name="time-outline" size={18} color="#c084fc" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+
+            <TimePickerModal
+              visible={showTimePicker}
+              title={i18n.reminderTimePickerTitle}
+              time={reminderTime}
+              onConfirm={(time) => {
+                setReminderTime(time);
+                setShowTimePicker(false);
+              }}
+              onClose={() => setShowTimePicker(false)}
+            />
 
             {/* Save */}
             <Button
@@ -269,7 +335,7 @@ export default function EditHabitScreen() {
               loading={isSaving}
               style={styles.saveButton}
             >
-              Kaydet
+              {i18n.saveBtn}
             </Button>
 
             {/* Delete — glass danger style */}
@@ -278,7 +344,7 @@ export default function EditHabitScreen() {
               style={styles.deleteButton}
               activeOpacity={0.80}
             >
-              <Text style={styles.deleteButtonText}>🗑  Alışkanlığı Sil</Text>
+              <Text style={styles.deleteButtonText}>🗑  {i18n.deleteHabitTitle}</Text>
             </TouchableOpacity>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -443,4 +509,108 @@ const styles = StyleSheet.create({
     color: COLORS.neutral[0],
     fontWeight: FONTS.weight.semibold,
   },
+  // Reminder Styles
+  reminderCard: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: LAYOUT.radius.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.10)',
+    padding: 12,
+    gap: 12,
+  },
+  reminderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  reminderText: {
+    flex: 1,
+    fontSize: FONTS.size.md,
+    color: 'rgba(255,255,255,0.8)',
+  },
+  toggleBtn: {
+    width: 48,
+    height: 28,
+    borderRadius: 14,
+    padding: 4,
+    justifyContent: 'center',
+  },
+  toggleCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#fff',
+  },
+  timeSelectBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    padding: 10,
+    borderRadius: 10,
+    gap: 10,
+  },
+  timeSelectLabel: {
+    flex: 1,
+    fontSize: FONTS.size.sm,
+    color: 'rgba(255,255,255,0.5)',
+  },
+  timeSelectValue: {
+    fontSize: FONTS.size.md,
+    fontWeight: '700',
+    color: '#fff',
+  },
+});
+
+function TimePickerModal({ visible, title, time, onConfirm, onClose }: { 
+  visible: boolean; title: string; time: string; onConfirm: (t: string) => void; onClose: () => void 
+}) {
+  const [h, setH] = useState(parseInt(time.split(':')[0], 10));
+  const [m, setM] = useState(parseInt(time.split(':')[1], 10));
+
+  const changeH = (delta: number) => setH((prev) => (prev + delta + 24) % 24);
+  const changeM = (delta: number) => setM((prev) => (prev + delta + 60) % 60);
+
+  return (
+    <Modal visible={visible} transparent animationType="fade">
+      <View style={tpStyles.backdrop}>
+        <View style={tpStyles.sheet}>
+          <Text style={tpStyles.title}>{title}</Text>
+          <View style={tpStyles.row}>
+            <View style={tpStyles.col}>
+              <TouchableOpacity onPress={() => changeH(1)}><Ionicons name="chevron-up" size={24} color="#c084fc" /></TouchableOpacity>
+              <Text style={tpStyles.val}>{String(h).padStart(2, '0')}</Text>
+              <TouchableOpacity onPress={() => changeH(-1)}><Ionicons name="chevron-down" size={24} color="#c084fc" /></TouchableOpacity>
+            </View>
+            <Text style={tpStyles.colon}>:</Text>
+            <View style={tpStyles.col}>
+              <TouchableOpacity onPress={() => changeM(5)}><Ionicons name="chevron-up" size={24} color="#c084fc" /></TouchableOpacity>
+              <Text style={tpStyles.val}>{String(m).padStart(2, '0')}</Text>
+              <TouchableOpacity onPress={() => changeM(-5)}><Ionicons name="chevron-down" size={24} color="#c084fc" /></TouchableOpacity>
+            </View>
+          </View>
+          <View style={tpStyles.btnRow}>
+            <TouchableOpacity onPress={onClose} style={tpStyles.btn}><Text style={tpStyles.btnText}>{i18n.cancel}</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => onConfirm(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`)} style={[tpStyles.btn, tpStyles.confirmBtn]}>
+              <Text style={tpStyles.confirmBtnText}>{i18n.confirm}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const tpStyles = StyleSheet.create({
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
+  sheet: { width: 280, backgroundColor: '#1a103d', borderRadius: 24, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(192,132,252,0.3)' },
+  title: { fontSize: 18, fontWeight: '700', color: '#fff', marginBottom: 20 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 24 },
+  col: { alignItems: 'center', gap: 5 },
+  val: { fontSize: 44, fontWeight: '800', color: '#fff', minWidth: 60, textAlign: 'center' },
+  colon: { fontSize: 40, fontWeight: '800', color: 'rgba(255,255,255,0.4)', marginBottom: 5 },
+  btnRow: { flexDirection: 'row', gap: 12, width: '100%' },
+  btn: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.05)' },
+  btnText: { color: 'rgba(255,255,255,0.6)', fontWeight: '600' },
+  confirmBtn: { backgroundColor: '#7c3aed' },
+  confirmBtnText: { color: '#fff', fontWeight: '700' },
 });

@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState, useEffect, useRef } from 'react';
 import { MenuDropdown } from '@/components/MenuDropdown';
 import { useAppTheme } from '@/src/hooks/useAppTheme';
+import { useTranslation } from '@/src/hooks/useTranslation';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -35,6 +36,7 @@ function TabIcon({ name, focused, color, size }: TabIconProps) {
 function CenterFAB() {
   const router = useRouter();
   const t = useAppTheme();
+  const i18n = useTranslation();
 
   const pulse1 = useRef(new Animated.Value(0)).current;
   const pulse2 = useRef(new Animated.Value(0)).current;
@@ -89,7 +91,7 @@ function CenterFAB() {
       >
         <Ionicons name="add" size={28} color="#fff" />
       </LinearGradient>
-      <Text style={[styles.fabLabel, { color: t.t3 }]}>Ekle</Text>
+      <Text style={[styles.fabLabel, { color: t.t3 }]}>{i18n.tabAdd}</Text>
     </TouchableOpacity>
   );
 }
@@ -97,6 +99,7 @@ function CenterFAB() {
 // Menu tab butonu
 function MenuTabButton({ onPress }: { onPress: () => void }) {
   const t = useAppTheme();
+  const i18n = useTranslation();
   return (
     <TouchableOpacity
       style={styles.menuTabWrapper}
@@ -111,7 +114,7 @@ function MenuTabButton({ onPress }: { onPress: () => void }) {
         />
         <Ionicons name="apps" size={22} color="rgba(192,132,252,0.90)" />
       </View>
-      <Text style={[styles.menuTabLabel, { color: t.tabInactive }]}>Menu</Text>
+      <Text style={[styles.menuTabLabel, { color: t.tabInactive }]}>{i18n.tabMenu}</Text>
     </TouchableOpacity>
   );
 }
@@ -119,6 +122,7 @@ function MenuTabButton({ onPress }: { onPress: () => void }) {
 export default function TabLayout() {
   const [menuVisible, setMenuVisible] = useState(false);
   const t = useAppTheme();
+  const i18n = useTranslation();
 
   return (
     <>
@@ -136,7 +140,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Ana Sayfa',
+          title: i18n.tabHome,
           tabBarIcon: ({ focused, color, size }) => (
             <TabIcon name={focused ? 'home' : 'home-outline'} focused={focused} color={color} size={size} />
           ),
@@ -145,7 +149,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="habits"
         options={{
-          title: 'Alışkanlıklar',
+          title: i18n.tabHabits,
           tabBarIcon: ({ focused, color, size }) => (
             <TabIcon name={focused ? 'checkmark-circle' : 'checkmark-circle-outline'} focused={focused} color={color} size={size} />
           ),
@@ -164,7 +168,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="explore"
         options={{
-          title: 'Grafik',
+          title: i18n.tabCharts,
           tabBarIcon: ({ focused, color, size }) => (
             <TabIcon name={focused ? 'analytics' : 'analytics-outline'} focused={focused} color={color} size={size} />
           ),
@@ -173,7 +177,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Menu',
+          title: i18n.tabMenu,
           tabBarButton: () => <MenuTabButton onPress={() => setMenuVisible(true)} />,
         }}
       />

@@ -31,10 +31,12 @@ function getWeekDates(): string[] {
 
 const WEEK_DATES = getWeekDates();
 
-function fmtHM(mins: number) {
+function fmtHM(mins: number, i18n: any) {
   const h = Math.floor(mins / 60);
   const m = mins % 60;
-  return m > 0 ? `${h} h ${String(m).padStart(2, '0')}m` : `${h} h`;
+  const hUnit = i18n.hourUnitShort;
+  const mUnit = i18n.minUnitShort;
+  return m > 0 ? `${h}${hUnit} ${String(m).padStart(2, '0')}${mUnit}` : `${h}${hUnit}`;
 }
 
 // ─── Tab seçici ───────────────────────────────────────────────────────────────
@@ -266,11 +268,11 @@ function TimeCard({ habit, logs, onPress, onLongPress }: { habit: TimeHabit; log
         <View style={timeStyles.nameCol}>
           <Text style={[timeStyles.name, { color: t.t1 }]}>{habit.name}</Text>
           <Text style={[timeStyles.sub, { color: t.t2 }]}>
-            {noData ? "İlk alışkanlığınız için uyku vaktinizi girin" : ""}
+            {noData ? i18n.sleepHabitHint : ""}
           </Text>
         </View>
         <View style={timeStyles.rightCol}>
-          <Text style={timeStyles.bigTime}>{noData ? "—" : fmtHM(weekMins)}</Text>
+          <Text style={timeStyles.bigTime}>{noData ? "—" : fmtHM(weekMins, i18n)}</Text>
           <Text style={[timeStyles.goalText, { color: t.t3 }]}>{""}</Text>
         </View>
       </View>
@@ -350,15 +352,15 @@ function BadCard({ habit, logs, onPress, onLongPress }: { habit: BadHabit; logs:
         <View style={badStyles.nameCol}>
           <Text style={[badStyles.name, { color: t.t1 }]}>{habit.name}</Text>
           <Text style={[badStyles.sub, { color: t.t2 }]}>
-            {exceeded > 0 ? `🚫 ${i18n.exceededTimes(exceeded)}` : `✅ ${i18n.clean} · ${periodLabel}`}
+            {exceeded > 0 
+              ? `🚫 ${i18n.limitExceeded} (${totalDone}/${habit.limitCount})` 
+              : `✅ ${i18n.clean} · ${periodLabel} (${habit.limitCount} ${i18n.timesUnit})`}
           </Text>
         </View>
         {/* Limit badge — the only difference from DoneCard */}
         <View style={badStyles.limitBadge}>
           <Text style={badStyles.limitNum}>
-            {habit.limitType === 'count' || (!habit.limitType && habit.limitCount) 
-              ? (habit.limitCount || 0) 
-              : (habit.limitMinutes || 0)}
+            {totalDone}
           </Text>
           <Text style={badStyles.limitLabel}>
             {habit.limitType === 'count' || (!habit.limitType && habit.limitCount) 
@@ -438,8 +440,8 @@ function TimeSummaryCard({ timeHabits, allLogs }: { timeHabits: TimeHabit[]; all
         start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
       />
       <View style={[summaryStyles.specular, { backgroundColor: t.specular }]} />
-      <Text style={[summaryStyles.weekLabel, { color: t.t3 }]}>THIS WEEK</Text>
-      <Text style={[summaryStyles.bigNum, { color: t.tAccent }]}>{fmtHM(totalMins)}</Text>
+      <Text style={[summaryStyles.weekLabel, { color: t.t3 }]}>{i18n.thisWeek}</Text>
+      <Text style={[summaryStyles.bigNum, { color: t.tAccent }]}>{fmtHM(totalMins, i18n)}</Text>
       <Text style={[summaryStyles.subLabel, { color: t.t2 }]}>{i18n.totalTrackedTime}</Text>
     </View>
   );
@@ -469,7 +471,7 @@ function BadSummaryCard({ badHabits, allLogs }: { badHabits: BadHabit[]; allLogs
       <View style={[summaryStyles.specular, { backgroundColor: t.specular }]} />
       <View style={summaryStyles.badRow}>
         <View style={{ flex: 1 }}>
-          <Text style={[summaryStyles.weekLabel, { color: t.t3 }]}>THIS WEEK</Text>
+          <Text style={[summaryStyles.weekLabel, { color: t.t3 }]}>{i18n.thisWeek}</Text>
           <Text style={[summaryStyles.subLabel, { color: t.t2 }]}>{i18n.stayStrong}</Text>
         </View>
         <ProgressRing
