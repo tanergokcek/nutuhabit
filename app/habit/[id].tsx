@@ -73,7 +73,7 @@ export default function HabitDetailScreen() {
 
   const habit = habits.find((h) => h.id === id) || (id === SLEEP_HABIT_ID ? SLEEP_HABIT : undefined);
   const todayLog = getTodayLog(id ?? '');
-  const streak = useStreak(id ?? '', habit?.type ?? 'done');
+  const streak = useStreak(id ?? '');
 
   const today = new Date();
   const habitLogs = logs.filter((l) => l.habitId === id);

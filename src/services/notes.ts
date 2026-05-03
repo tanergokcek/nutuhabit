@@ -117,3 +117,22 @@ export async function deleteNote(noteId: string): Promise<void> {
     console.error('Error deleting note:', error);
   }
 }
+
+/**
+ * Kullanıcının tüm notlarını sil
+ */
+export async function resetAllNotes(userId: string): Promise<void> {
+  try {
+    const q = query(
+      collection(db, 'notes'),
+      where('userId', '==', userId)
+    );
+    const querySnapshot = await getDocs(q);
+    const deletePromises = querySnapshot.docs.map((docSnap) =>
+      deleteDoc(docSnap.ref)
+    );
+    await Promise.all(deletePromises);
+  } catch (error) {
+    console.error('Error resetting all notes:', error);
+  }
+}

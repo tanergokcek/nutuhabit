@@ -438,6 +438,11 @@ export default function LogHabitScreen() {
   const [durH, setDurH] = useState(0);
   const [durM, setDurM] = useState(0);
 
+  // Hedef Süre (Goal) — habit'den alınacak veya kullanıcı belirleyecek
+  const [goalH, setGoalH] = useState(0);
+  const [goalM, setGoalM] = useState(0);
+  const [goalPeriod, setGoalPeriod] = useState<'daily' | 'weekly' | 'yearly'>('daily');
+
   const activeHabits = useMemo(() => habits.filter((h) => !h.isArchived), [habits]);
   const filteredHabits = useMemo(() => activeHabits.filter((h) => h.type === selectedType), [activeHabits, selectedType]);
 
@@ -463,8 +468,27 @@ export default function LogHabitScreen() {
     )[0];
     setSelectedType(recent.type);
     setSelectedHabitId(recent.id);
+
+    if (recent.type === 'time') {
+      const th = recent as import('@/src/types/habit').TimeHabit;
+      setGoalH(Math.floor((th.goalMinutes || 0) / 60));
+      setGoalM((th.goalMinutes || 0) % 60);
+      setGoalPeriod(th.goalPeriod || 'daily');
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Alışkanlık değiştiğinde hedefi güncelle
+  useEffect(() => {
+    if (!selectedHabitId) return;
+    const habit = activeHabits.find(h => h.id === selectedHabitId);
+    if (habit && habit.type === 'time') {
+      const th = habit as import('@/src/types/habit').TimeHabit;
+      setGoalH(Math.floor((th.goalMinutes || 0) / 60));
+      setGoalM((th.goalMinutes || 0) % 60);
+      setGoalPeriod(th.goalPeriod || 'daily');
+    }
+  }, [selectedHabitId, activeHabits]);
 
   // Başlangıç/Bitiş modunda geçen süre
   const rangeMinutes = useMemo(() => {
@@ -495,6 +519,10 @@ export default function LogHabitScreen() {
     const noteValue = notes.trim() || undefined;
 
     if (selectedType === 'time') {
+      const newGoalMinutes = goalH * 60 + goalM;
+      // Habit hedefini güncelle
+      updateHabit(habit.id, { goalMinutes: newGoalMinutes, goalPeriod: goalPeriod as any });
+      
       updateLog(habit.id, selectedDate, { status: 'done', elapsedMinutes, note: noteValue });
     } else if (selectedType === 'bad') {
       const badHabit = habit as import('@/src/types/habit').BadHabit;
@@ -529,6 +557,10 @@ export default function LogHabitScreen() {
       };
 
       if (selectedType === 'time') {
+        const newGoalMinutes = goalH * 60 + goalM;
+        // Firebase habit güncelle
+        updateHabitService(habit.id, { goalMinutes: newGoalMinutes, goalPeriod: goalPeriod as any });
+
         logData.elapsedMinutes = elapsedMinutes;
         logData.status = 'done';
       } else if (selectedType === 'bad') {
@@ -564,7 +596,8 @@ export default function LogHabitScreen() {
 
     // Zustand güncellemesi senkron — log kaydedildikten hemen sonra streak hesapla
     const updatedLogs = useHabitStore.getState().getLogsForHabit(habit.id);
-    const streakInfo = calculateStreak(updatedLogs, selectedType);
+    const updatedHabit = useHabitStore.getState().habits.find(h => h.id === habit.id) || habit;
+    const streakInfo = calculateStreak(updatedLogs, updatedHabit);
 
     if (streakInfo.currentStreak > 0) {
       setSavedResult({
@@ -836,6 +869,101 @@ export default function LogHabitScreen() {
                     </Text>
                   </View>
 
+                  <View style={styles.expandDivider} />
+
+                  {/* ── Hedef Süre Ayarı (Yeni) ── */}
+                  <View style={styles.goalSection}>
+                    <View style={styles.goalHeader}>
+                      <Ionicons name="flag-outline" size={14} color="#c084fc" />
+                      <Text style={styles.goalTitle}>{i18n.goalLabel}</Text>
+                    </View>
+                    
+                    <View style={styles.goalPeriodRow}>
+                      {(['daily', 'weekly', 'yearly'] as const).map((p) => {
+                        const isActive = goalPeriod === p;
+                        const label = p === 'daily' ? i18n.daily : p === 'weekly' ? i18n.weekly : i18n.yearly;
+                        return (
+                          <TouchableOpacity
+                            key={p}
+                            style={[styles.periodChip, isActive && styles.periodChipActive]}
+                            onPress={() => setGoalPeriod(p)}
+                          >
+                            <Text style={[styles.periodChipText, isActive && styles.periodChipTextActive]}>
+                              {label}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+
+                    <View style={styles.goalInputRow}>
+                      <TouchableOpacity
+                        onPress={() => {
+                          const total = goalH * 60 + goalM;
+                          const next = Math.max(15, total - 15);
+                          setGoalH(Math.floor(next / 60));
+                          setGoalM(next % 60);
+                        }}
+                        style={styles.goalStepBtn}
+                      >
+                        <Ionicons name="remove" size={18} color="#c084fc" />
+                      </TouchableOpacity>
+
+                      <View style={styles.goalInputGroup}>
+                        <TextInput
+                          style={styles.goalInput}
+                          value={String(goalH)}
+                          onChangeText={(v) => setGoalH(parseInt(v) || 0)}
+                          keyboardType="number-pad"
+                          maxLength={2}
+                        />
+                        <Text style={styles.goalInputUnit}>{i18n.hourUnitShort}</Text>
+                      </View>
+                      <Text style={styles.goalInputColon}>:</Text>
+                      <View style={styles.goalInputGroup}>
+                        <TextInput
+                          style={styles.goalInput}
+                          value={String(goalM)}
+                          onChangeText={(v) => setGoalM(parseInt(v) || 0)}
+                          keyboardType="number-pad"
+                          maxLength={2}
+                        />
+                        <Text style={styles.goalInputUnit}>{i18n.minUnitShort}</Text>
+                      </View>
+
+                      <TouchableOpacity
+                        onPress={() => {
+                          const total = goalH * 60 + goalM;
+                          const next = total + 15;
+                          setGoalH(Math.floor(next / 60));
+                          setGoalM(next % 60);
+                        }}
+                        style={styles.goalStepBtn}
+                      >
+                        <Ionicons name="add" size={18} color="#c084fc" />
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* Shortcuts */}
+                    <View style={styles.goalShortcutRow}>
+                      {[30, 60, 90, 120].map((mins) => (
+                        <TouchableOpacity
+                          key={mins}
+                          onPress={() => {
+                            setGoalH(Math.floor(mins / 60));
+                            setGoalM(mins % 60);
+                          }}
+                          style={styles.goalShortcutBtn}
+                        >
+                          <Text style={styles.goalShortcutText}>{mins} {i18n.minUnitShort}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                    
+                    <Text style={styles.goalHint}>
+                      {i18n.goalMet}: {goalH > 0 ? `${goalH} ${i18n.hourUnit} ` : ''}{goalM > 0 ? `${goalM} ${i18n.minuteUnit}` : ''} ({goalPeriod === 'daily' ? i18n.daily : goalPeriod === 'weekly' ? i18n.weekly : i18n.yearly})
+                    </Text>
+                  </View>
                 </View>
               </>
             ) : (
@@ -1243,4 +1371,113 @@ const styles = StyleSheet.create({
   saveBtn: { flex: 1, borderRadius: 14, overflow: 'hidden' },
   saveGrad: { paddingVertical: 14, alignItems: 'center', justifyContent: 'center' },
   saveText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+
+  // Goal section
+  goalSection: {
+    width: '100%',
+    paddingTop: 10,
+    gap: 12,
+  },
+  goalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  goalTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#e9d5ff',
+    letterSpacing: 0.5,
+  },
+  goalPeriodRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  periodChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  periodChipActive: {
+    borderColor: '#c084fc',
+    backgroundColor: 'rgba(168,85,247,0.25)',
+  },
+  periodChipText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.4)',
+  },
+  periodChipTextActive: {
+    color: '#fff',
+  },
+  goalInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 12,
+    padding: 10,
+    alignSelf: 'flex-start',
+  },
+  goalStepBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: 'rgba(168,85,247,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(192,132,252,0.3)',
+  },
+  goalInputGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  goalInput: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#fff',
+    minWidth: 30,
+    textAlign: 'center',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 6,
+    paddingHorizontal: 4,
+  },
+  goalInputUnit: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.5)',
+    fontWeight: '600',
+  },
+  goalInputColon: {
+    fontSize: 20,
+    color: 'rgba(255,255,255,0.3)',
+    fontWeight: '300',
+  },
+  goalShortcutRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 4,
+  },
+  goalShortcutBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  goalShortcutText: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.5)',
+    fontWeight: '600',
+  },
+  goalHint: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.35)',
+    fontStyle: 'italic',
+  },
 });

@@ -109,10 +109,10 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="habit/[id]" options={{ headerShown: false }} />
-        <Stack.Screen name="habit/new" dangerouslySingular={() => String(Date.now())} options={{ headerShown: false, presentation: 'modal' }} />
+        <Stack.Screen name="habit/new" options={{ headerShown: false, presentation: 'modal' }} />
         <Stack.Screen name="habit/edit/[id]" options={{ headerShown: false, presentation: 'modal' }} />
         <Stack.Screen name="calendarPage" options={{ headerShown: false, presentation: 'modal' }} />
-        <Stack.Screen name="logHabit" dangerouslySingular={() => String(Date.now())} options={{ headerShown: false, presentation: 'modal' }} />
+        <Stack.Screen name="logHabit" options={{ headerShown: false, presentation: 'modal' }} />
         <Stack.Screen name="aiCoach" options={{ headerShown: false }} />
         <Stack.Screen name="reminder" options={{ headerShown: false }} />
         <Stack.Screen name="notes" options={{ headerShown: false }} />

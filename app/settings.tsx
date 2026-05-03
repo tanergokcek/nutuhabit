@@ -12,6 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { resetUserData } from '@/src/services/habits';
 import { resetAllTodos } from '@/src/services/todos';
+import { resetAllNotes } from '@/src/services/notes';
 import React, { useState } from 'react';
 import {
   Alert,
@@ -117,13 +118,10 @@ export default function SettingsScreen() {
                 // Firebase Reset
                 await resetUserData(user.id);
                 await resetAllTodos(user.id);
+                await resetAllNotes(user.id);
               }
               
               // Local Store Reset
-              const { useHabitStore } = await import('@/src/store/useHabitStore');
-              const { useTodoStore } = await import('@/src/store/useTodoStore');
-              const { useTimerStore } = await import('@/src/store/useTimerStore');
-              
               useHabitStore.getState().resetHabits();
               useTodoStore.getState().resetTodos();
               useTimerStore.getState().resetTimerStore();

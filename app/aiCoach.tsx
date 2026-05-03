@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, StatusBar, TouchableOpacity, Alert, ScrollView,
+  View, Text, StyleSheet, StatusBar, TouchableOpacity, Alert, ScrollView, Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,19 +9,21 @@ import { useHabitStore } from '@/src/store/useHabitStore';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { useTodoStore } from '@/src/store/useTodoStore';
 import { useTranslation } from '@/src/hooks/useTranslation';
+import { useLanguageStore } from '@/src/store/useLanguageStore';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { getAICoachResponse, getAIAnalysis } from '@/src/services/ai';
 
-const getPlans = (i18n: any) => ({
+const getPlans = (i18n: any, lang: string) => ({
   monthly: {
-    tr: { price: '99,99', unit: '₺', period: i18n.language === 'tr' ? '/ ay' : '/ mo', label: i18n.monthlyLabel },
-    intl: { price: '$2,99', period: i18n.language === 'tr' ? '/ ay' : '/ mo', label: i18n.monthlyLabel },
+    tr: { price: '99,99', unit: '₺', period: lang === 'tr' ? '/ ay' : '/ mo', label: i18n.monthlyLabel },
+    intl: { price: '$2,99', period: lang === 'tr' ? '/ ay' : '/ mo', label: i18n.monthlyLabel },
     badge: null,
   },
   yearly: {
-    tr: { price: '999,99', unit: '₺', period: i18n.language === 'tr' ? '/ yıl' : '/ yr', label: i18n.yearlyLabel },
-    intl: { price: '$24,99', period: i18n.language === 'tr' ? '/ yıl' : '/ yr', label: i18n.yearlyLabel },
+    tr: { price: '999,99', unit: '₺', period: lang === 'tr' ? '/ yıl' : '/ yr', label: i18n.yearlyLabel },
+    intl: { price: '$24,99', period: lang === 'tr' ? '/ yıl' : '/ yr', label: i18n.yearlyLabel },
     badge: i18n.aiCoachFreeMonths,
   },
 });
@@ -29,6 +31,7 @@ const getPlans = (i18n: any) => ({
 export default function AICoachScreen() {
   const router = useRouter();
   const i18n = useTranslation();
+  const langCode = useLanguageStore((s) => s.language);
   const [plan, setPlan] = useState<'monthly' | 'yearly'>('monthly');
   const [isPremium, setIsPremium] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
@@ -41,99 +44,37 @@ export default function AICoachScreen() {
   const { todos } = useTodoStore();
   const { user } = useAuthStore();
 
-  const PLANS = getPlans(i18n);
+  const PLANS = getPlans(i18n, langCode);
   const current = PLANS[plan];
 
   const FEATURES = [
-    { emoji: '🤖', text: i18n.aiCoachFeature1 },
-    { emoji: '📊', text: i18n.aiCoachFeature2 },
-    { emoji: '🔔', text: i18n.aiCoachFeature3 },
-    { emoji: '☁️', text: i18n.aiCoachFeature4 },
+    { icon: 'chatbubble-ellipses', text: i18n.aiCoachFeature1 },
+    { icon: 'stats-chart', text: i18n.aiCoachFeature2 },
+    { icon: 'notifications', text: i18n.aiCoachFeature3 },
+    { icon: 'add-circle', text: i18n.aiCoachFeature4 },
   ];
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!inputText.trim()) return;
 
-    const userMsg = { id: Date.now().toString(), text: inputText, sender: 'user' as const };
+    const userText = inputText;
+    const userMsg = { id: Date.now().toString(), text: userText, sender: 'user' as const };
     setMessages(prev => [...prev, userMsg]);
-    const currentInput = inputText.toLowerCase();
     setInputText('');
     setIsTyping(true);
 
-    // Veri Bazlı AI Yanıt Mantığı
-    setTimeout(() => {
-      let aiReply = "";
+    // Gemini AI Yanıtı
+    const aiReply = await getAICoachResponse(userText, {
+      habits,
+      logs,
+      todos,
+      language: langCode,
+      userName: user?.displayName
+    });
 
-      if (i18n.language === 'en') {
-        // English Mock Responses
-        if (currentInput.includes('habit') || currentInput.includes('how') || currentInput.includes('status')) {
-          const bestHabit = habits.map(h => ({
-            name: h.name,
-            score: logs.filter(l => l.habitId === h.id && l.status === 'done').length
-          })).sort((a, b) => b.score - a.score)[0];
-
-          if (bestHabit && bestHabit.score > 0) {
-            aiReply = `Your most successful habit currently is "${bestHabit.name}". You've completed it successfully ${bestHabit.score} times. `;
-          } else {
-            aiReply = "We're just getting started! Keep logging your habits for better analysis. ";
-          }
-        }
-
-        if (currentInput.includes('todo') || currentInput.includes('task') || currentInput.includes('work')) {
-          const pendingTodos = todos.filter(t => !t.completed);
-          if (pendingTodos.length > 0) {
-            aiReply += `You have ${pendingTodos.length} pending tasks on your todo list, including "${pendingTodos[0].text}". It's a great day to finish them! `;
-          } else {
-            aiReply += "You've finished all your tasks, amazing! Want to set a new goal? ";
-          }
-        }
-
-        if (!aiReply) {
-          const randomHabit = habits[Math.floor(Math.random() * habits.length)];
-          if (randomHabit) {
-            aiReply = `I suggest focusing on your "${randomHabit.name}" habit today. Starting with a small step creates big changes. Anything else you want to know?`;
-          } else {
-            aiReply = "How can I help you? You can plan your habits or ask about your current status.";
-          }
-        }
-      } else {
-        // Turkish Mock Responses (Already implemented)
-        if (currentInput.includes('alışkanlık') || currentInput.includes('nasılım') || currentInput.includes('durum')) {
-          const bestHabit = habits.map(h => ({
-            name: h.name,
-            score: logs.filter(l => l.habitId === h.id && l.status === 'done').length
-          })).sort((a, b) => b.score - a.score)[0];
-
-          if (bestHabit && bestHabit.score > 0) {
-            aiReply = `Şu an en başarılı olduğun alışkanlık "${bestHabit.name}". Bu alışkanlığı tam ${bestHabit.score} kez başarıyla tamamlamışsın. `;
-          } else {
-            aiReply = "Henüz yeni başlıyoruz! Alışkanlıklarını düzenli kaydetmeye devam edersen senin için daha iyi analizler yapabilirim. ";
-          }
-        }
-
-        if (currentInput.includes('yapılacak') || currentInput.includes('todo') || currentInput.includes('iş')) {
-          const pendingTodos = todos.filter(t => !t.completed);
-          if (pendingTodos.length > 0) {
-            aiReply += `Yapılacaklar listende şu an "${pendingTodos[0].text}" dahil ${pendingTodos.length} tane bekleyen görev var. Bunları bitirmek için harika bir gün! `;
-          } else {
-            aiReply += "Tüm görevlerini tamamlamışsın, harikasın! Kendine yeni bir hedef belirlemek ister misin? ";
-          }
-        }
-
-        if (!aiReply) {
-          const randomHabit = habits[Math.floor(Math.random() * habits.length)];
-          if (randomHabit) {
-            aiReply = `"${randomHabit.name}" alışkanlığına bugün odaklanmanı öneririm. Küçük bir adımla başlamak büyük değişimler yaratır. Başka ne öğrenmek istersin?`;
-          } else {
-            aiReply = "Sana nasıl yardımcı olabilirim? Alışkanlıklarını planlayabilir veya mevcut durumun hakkında soru sorabilirsin.";
-          }
-        }
-      }
-
-      const aiMsg = { id: (Date.now() + 1).toString(), text: aiReply, sender: 'ai' as const };
-      setMessages(prev => [...prev, aiMsg]);
-      setIsTyping(false);
-    }, 1500);
+    const aiMsg = { id: (Date.now() + 1).toString(), text: aiReply, sender: 'ai' as const };
+    setMessages(prev => [...prev, aiMsg]);
+    setIsTyping(false);
   };
 
   const handlePayment = () => {
@@ -153,50 +94,19 @@ export default function AICoachScreen() {
     setAnalyzing(true);
     setAnalysis(null);
 
-    // Veri Analiz Mantığı
-    const habitStats = habits.map(h => {
-      const hLogs = logs.filter(l => l.habitId === h.id);
-      const totalDays = hLogs.length;
-      const successDays = hLogs.filter(l => l.status === 'done').length;
-      const failDays = hLogs.filter(l => l.status === 'failed').length;
-      const successRate = totalDays > 0 ? Math.round((successDays / totalDays) * 100) : 0;
-      
-      let extra = "";
-      if (h.type === 'time') {
-        const totalMins = hLogs.reduce((acc, curr) => acc + (curr.elapsedMinutes || 0), 0);
-        const avgMins = totalDays > 0 ? Math.round(totalMins / totalDays) : 0;
-        extra = ` (${i18n.averageLabel}: ${avgMins} ${i18n.minUnitShort})`;
-      } else if (h.type === 'bad') {
-        extra = ` (${i18n.limitExceededLabel}: ${failDays} ${i18n.dayUnit})`;
-      }
+    // Gemini AI Analizi
+    const result = await getAIAnalysis({
+      habits,
+      logs,
+      language: langCode
+    });
 
-      const label = i18n.successLabel;
-      return `- ${h.name} [%${successRate} ${label}]${extra}`;
-    }).join('\n');
-
-    // Simüle edilmiş AI yanıtı
-    setTimeout(() => {
-      const intro = i18n.reportIntro;
-      const body = habitStats + "\n\n";
-      
-      const insightsTR = [
-        "Genel tabloya baktığımda istikrarlı bir ilerleme görüyorum. Özellikle pozitif alışkanlıklarındaki %70 üzeri başarı oranın harika. Kötü alışkanlıklarla mücadelede biraz daha disipline ihtiyacın olabilir.",
-        "Zaman bazlı hedeflerinde ortalamaların oldukça iyi. Bu, odaklanma sürenin arttığını gösteriyor. Yapıldı/Yapılmadı hedeflerinde ise sabah saatlerini daha iyi değerlendirebilirsin.",
-        "Harika gidiyorsun! Verilerin, son 3 gündür %100 başarıyla ilerlediğini gösteriyor. Bu ivmeyi kaybetmemek için bugün de hedeflerini tamamlamayı unutma.",
-      ];
-
-      const insightsEN = [
-        "Looking at the general picture, I see consistent progress. Especially your success rate above 70% in positive habits is great. You may need a bit more discipline in dealing with bad habits.",
-        "Your averages in time-based goals are quite good. This shows that your focus time is increasing. In done/not done goals, you can better utilize your morning hours.",
-        "You're doing great! Your data shows 100% success for the last 3 days. To keep this momentum, don't forget to complete your goals today too.",
-      ];
-      
-      const insights = i18n.language === 'tr' ? insightsTR : insightsEN;
-      const randomInsight = insights[Math.floor(Math.random() * insights.length)];
-      
-      setAnalysis(intro + body + randomInsight);
-      setAnalyzing(false);
-    }, 2500);
+    if (result) {
+      setAnalysis(result);
+    } else {
+      Alert.alert("Hata", "Analiz şu an yapılamıyor.");
+    }
+    setAnalyzing(false);
   };
 
   return (
@@ -228,8 +138,12 @@ export default function AICoachScreen() {
         {!isPremium ? (
           <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
             <View style={styles.inner}>
-              {/* Star */}
-              <Text style={styles.star}>⭐</Text>
+              {/* Logo */}
+              <Image 
+                source={require('@/assets/brand/favicon.png')} 
+                style={{ width: 80, height: 80, marginBottom: 20 }}
+                resizeMode="contain"
+              />
 
               {/* Title */}
               <Text style={styles.title}>{i18n.aiCoachPro}</Text>
@@ -240,7 +154,7 @@ export default function AICoachScreen() {
                 {FEATURES.map((f, i) => (
                   <View key={i} style={[styles.featureRow, i < FEATURES.length - 1 && styles.featureRowBorder]}>
                     <View style={styles.featureIconWrap}>
-                      <Text style={styles.featureEmoji}>{f.emoji}</Text>
+                      <Ionicons name={f.icon as any} size={20} color="#a855f7" />
                     </View>
                     <Text style={styles.featureText}>{f.text}</Text>
                   </View>

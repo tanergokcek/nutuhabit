@@ -52,7 +52,8 @@ export default function NewHabitScreen() {
   const [name, setName] = useState('');
   const [type, setType] = useState<HabitType>('done');
   const [icon, setIcon] = useState('star-outline');
-  const [goalMinutes, setGoalMinutes] = useState('30');
+  const [goalMinutes, setGoalMinutes] = useState('60');
+  const [goalPeriod, setGoalPeriod] = useState<'daily' | 'weekly' | 'yearly'>('daily');
   const [limitPeriod, setLimitPeriod] = useState<BadLimitPeriod>('daily');
   const [limitCount, setLimitCount] = useState(1);
   const [frequency, setFrequency] = useState(i18n.freqEveryday);
@@ -115,6 +116,8 @@ export default function NewHabitScreen() {
 
       if (type === 'time') {
         habitData.color = color;
+        habitData.goalMinutes = parseInt(goalMinutes) || 30;
+        habitData.goalPeriod = goalPeriod;
       }
 
       if (type === 'bad') {
@@ -134,7 +137,7 @@ export default function NewHabitScreen() {
       if (type === 'done') {
         addHabit(base as Omit<DoneHabit, 'id' | 'createdAt' | 'updatedAt' | 'userId' | 'isArchived' | 'sortOrder'>);
       } else if (type === 'time') {
-        addHabit({ ...base, goalMinutes: 0 } as Omit<TimeHabit, 'id' | 'createdAt' | 'updatedAt' | 'userId' | 'isArchived' | 'sortOrder'>);
+        addHabit({ ...base, goalMinutes: parseInt(goalMinutes) || 30, goalPeriod } as Omit<TimeHabit, 'id' | 'createdAt' | 'updatedAt' | 'userId' | 'isArchived' | 'sortOrder'>);
       } else {
         addHabit({
           ...base,
@@ -389,7 +392,96 @@ export default function NewHabitScreen() {
                       >
                         <Ionicons name="add" size={18} color={t.t2} />
                       </TouchableOpacity>
-                      <Text style={[styles.stepperUnit, { color: t.t3 }]}>{i18n.stepperTimes}</Text>
+                    </View>
+                  </View>
+                )}
+              </>
+            )}
+
+            {/* Hedef Süre Row — yalnızca time türü için */}
+            {type === 'time' && (
+              <>
+                <TouchableOpacity
+                  style={[styles.detailRow, { borderBottomColor: t.divider }]}
+                  onPress={() => togglePanel('period')}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.detailRowText, { color: t.tLabel }]}>{i18n.goalLabel}</Text>
+                  <Text style={[styles.detailRowValue, { color: t.t3 }]}>
+                    {goalMinutes} {i18n.minUnitShort} / {goalPeriod === 'daily' ? i18n.daily : goalPeriod === 'weekly' ? i18n.weekly : i18n.yearly}
+                  </Text>
+                  <Ionicons
+                    name={openPanel === 'period' ? 'chevron-up' : 'chevron-down'}
+                    size={14}
+                    color={t.tLabel}
+                  />
+                </TouchableOpacity>
+                {openPanel === 'period' && (
+                  <View style={[styles.limitPanel, { backgroundColor: t.panelBg, borderColor: t.panelBorder }]}>
+                    <Text style={[styles.limitPanelLabel, { color: t.t3 }]}>{i18n.periodLabel}</Text>
+                    <View style={styles.periodBtnRow}>
+                      {(['daily', 'weekly', 'yearly'] as const).map((p) => {
+                        const active = goalPeriod === p;
+                        const label = p === 'daily' ? i18n.daily : p === 'weekly' ? i18n.weekly : i18n.yearly;
+                        return active ? (
+                          <LinearGradient
+                            key={p}
+                            colors={['rgba(168,85,247,0.55)', 'rgba(109,40,217,0.45)']}
+                            style={styles.periodBtnActive}
+                          >
+                            <TouchableOpacity onPress={() => setGoalPeriod(p)} activeOpacity={0.8} style={styles.periodBtnInner}>
+                              <Text style={styles.periodBtnTextActive}>{label}</Text>
+                            </TouchableOpacity>
+                          </LinearGradient>
+                        ) : (
+                          <TouchableOpacity
+                            key={p}
+                            onPress={() => setGoalPeriod(p)}
+                            activeOpacity={0.75}
+                            style={[styles.periodBtnInactive, { backgroundColor: t.rowBg, borderColor: t.rowBorder }]}
+                          >
+                            <Text style={[styles.periodBtnText, { color: t.t3 }]}>{label}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+
+                    <Text style={[styles.limitPanelLabel, { color: t.t3, marginTop: 14 }]}>{i18n.habitGoalMinutesLabel}</Text>
+                    <View style={styles.stepperRow}>
+                      <TouchableOpacity
+                        onPress={() => setGoalMinutes((c) => String(Math.max(15, (parseInt(c) || 0) - 15)))}
+                        style={[styles.stepperBtn, { backgroundColor: t.rowBg, borderColor: t.rowBorder }]}
+                        activeOpacity={0.75}
+                      >
+                        <Ionicons name="remove" size={18} color={t.t2} />
+                      </TouchableOpacity>
+                      <TextInput
+                        style={[styles.stepperValue, { color: t.t1, minWidth: 50, textAlign: 'center' }]}
+                        value={goalMinutes}
+                        onChangeText={setGoalMinutes}
+                        keyboardType="number-pad"
+                      />
+                      <TouchableOpacity
+                        onPress={() => setGoalMinutes((c) => String((parseInt(c) || 0) + 15))}
+                        style={[styles.stepperBtn, { backgroundColor: t.rowBg, borderColor: t.rowBorder }]}
+                        activeOpacity={0.75}
+                      >
+                        <Ionicons name="add" size={18} color={t.t2} />
+                      </TouchableOpacity>
+                      <Text style={[styles.stepperUnit, { color: t.t3 }]}>{i18n.minUnitShort}</Text>
+                    </View>
+
+                    {/* Shortcuts */}
+                    <View style={styles.shortcutRow}>
+                      {[30, 60, 90, 120].map((mins) => (
+                        <TouchableOpacity
+                          key={mins}
+                          onPress={() => setGoalMinutes(String(mins))}
+                          style={[styles.shortcutBtn, { backgroundColor: t.rowBg, borderColor: t.rowBorder }]}
+                        >
+                          <Text style={[styles.shortcutText, { color: t.t3 }]}>{mins} {i18n.minUnitShort}</Text>
+                        </TouchableOpacity>
+                      ))}
                     </View>
                   </View>
                 )}
@@ -1058,6 +1150,21 @@ const styles = StyleSheet.create({
     fontFamily: 'InriaSerif_700Bold',
     color: '#fff',
     letterSpacing: 0.3,
+  },
+  shortcutRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 12,
+  },
+  shortcutBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  shortcutText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
 });
 

@@ -1327,7 +1327,7 @@ const dotRowStyles = StyleSheet.create({
 function ActiveHabitCard({ habit, selectedDate, onPress, t }: { habit: DoneHabit; selectedDate: string; onPress: () => void; t: ThemeTokens }) {
   const i18n = useTranslation();
   const allLogs = useHabitStore((state) => state.logs);
-  const streak = useStreak(habit.id, 'done');
+  const streak = useStreak(habit.id);
   const logs = useMemo(() => allLogs.filter((l) => l.habitId === habit.id), [allLogs, habit.id]);
   const weekDays = getWeekDays(i18n.weekDays);
   const weekLogs = weekDays.map((d) => ({
@@ -1368,7 +1368,7 @@ function ActiveHabitCard({ habit, selectedDate, onPress, t }: { habit: DoneHabit
 function TimeHabitFeaturedCard({ habit, selectedDate, onPress, t }: { habit: TimeHabit; selectedDate: string; onPress: () => void; t: ThemeTokens }) {
   const i18n = useTranslation();
   const allLogs = useHabitStore((state) => state.logs);
-  const streak = useStreak(habit.id, 'time');
+  const streak = useStreak(habit.id);
   const logs = useMemo(() => allLogs.filter((l) => l.habitId === habit.id), [allLogs, habit.id]);
   const weekDays = getWeekDays(i18n.weekDays);
 
@@ -1641,7 +1641,7 @@ export default function HomeScreen() {
   const t = useAppTheme();
   const i18n = useTranslation();
   const { habits, setFilter, setScrollToHabitId, getTodayLog, updateLog, setHabits, setLogs, logs } = useHabitStore();
-  const sleepStreak = useStreak(SLEEP_HABIT_ID, 'time');
+  const sleepStreak = useStreak(SLEEP_HABIT_ID);
   const { user, isGuest } = useAuthStore();
 
   const [selectedDate, setSelectedDate] = useState(getTodayString());
@@ -1774,7 +1774,7 @@ export default function HomeScreen() {
     // Sadece bugün ilk kez başarılıysa kutlama göster
     if (!wasAlreadyDoneToday && totalMins >= 480 && dateToSave === getTodayString()) {
       const updatedLogs = useHabitStore.getState().getLogsForHabit(SLEEP_HABIT_ID);
-      const updatedStreak = calculateStreak(updatedLogs, 'time');
+      const updatedStreak = calculateStreak(updatedLogs, SLEEP_HABIT);
       setCelebStreakCount(updatedStreak.currentStreak);
       setTimeout(() => setStreakCelebVisible(true), 350);
     }
@@ -1963,6 +1963,22 @@ export default function HomeScreen() {
         <WeekStrip selectedDate={selectedDate} onSelectDate={setSelectedDate} t={t} />
       </SafeAreaView>
 
+      {/* ── AI Koç FAB ── */}
+      <TouchableOpacity
+        style={styles.aiFab}
+        onPress={() => router.push('/aiCoach')}
+        activeOpacity={0.85}
+      >
+        <LinearGradient
+          colors={['#a855f7', '#7c3aed', '#6d28d9']}
+          style={styles.aiFabGrad}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <Ionicons name="sparkles" size={22} color="#fff" />
+        </LinearGradient>
+      </TouchableOpacity>
+
       <SleepConfirmModal
         visible={confirmVisible}
         bedH={bedH} bedM={bedM}
@@ -2023,5 +2039,28 @@ function makeStyles(t: ThemeTokens) {
     emptyLogo: { width: 72, height: 72, marginBottom: 14 },
     emptyTitle: { ...textStyles.headline, marginBottom: 6 },                           // 17pt semibold
     emptyText: { ...textStyles.footnote, textAlign: 'center' },                       // 13pt
+
+    // AI FAB
+    aiFab: {
+      position: 'absolute',
+      bottom: 95,
+      right: 20,
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      overflow: 'hidden',
+      shadowColor: '#7c3aed',
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.65,
+      shadowRadius: 16,
+      elevation: 12,
+      borderWidth: 1.5,
+      borderColor: 'rgba(192,132,252,0.50)',
+    },
+    aiFabGrad: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
   });
 }

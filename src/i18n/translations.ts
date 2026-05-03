@@ -256,6 +256,7 @@ export interface Translations {
   goalLabel: string;
   noDataToday: string;
   sleepDetailHint: string;
+  yearlyGoalLabel: string;
   dailyGoalLabel: string;
   completed: string;
   hasData: string;
@@ -305,6 +306,7 @@ export interface Translations {
   aiCoachFreeMonths: string;
   monthlyLabel: string;
   yearlyLabel: string;
+  yearly: string;
   turkeyLabel: string;
   internationalLabel: string;
   successLabel: string;
@@ -493,7 +495,7 @@ export const tr: Translations = {
   aiCoachFeature1: 'AI Coach — Kişisel alışkanlık danışmanı',
   aiCoachFeature2: 'Gelişmiş istatistikler ve analizler',
   aiCoachFeature3: 'Sınırsız hatırlatıcı',
-  aiCoachFeature4: 'iCloud senkronizasyonu',
+  aiCoachFeature4: '3\'ten fazla alışkanlık ekleme',
   aiCoachPremiumBtn: "Premium'a Geç",
   aiCoachNotNow: 'Şimdi değil',
   aiCoachAnalyzeBtn: 'Verilerimi Analiz Et',
@@ -593,6 +595,7 @@ export const tr: Translations = {
   goalLabel: 'Hedef',
   noDataToday: 'Bugün kayıt yok',
   sleepDetailHint: 'Ana sayfadaki uyku kartından saat girerek kaydet',
+  yearlyGoalLabel: 'Yıllık Hedef',
   dailyGoalLabel: 'Günlük Hedef',
   completed: 'Tamamlandı',
   hasData: 'Kayıt var',
@@ -642,6 +645,7 @@ export const tr: Translations = {
   aiCoachFreeMonths: '2 ay ücretsiz',
   monthlyLabel: 'Aylık',
   yearlyLabel: 'Yıllık',
+  yearly: 'Yıllık',
   turkeyLabel: 'Türkiye',
   internationalLabel: 'Uluslararası',
   successLabel: 'Başarı',
@@ -830,7 +834,7 @@ export const en: Translations = {
   aiCoachFeature1: 'AI Coach — Personal habit consultant',
   aiCoachFeature2: 'Advanced statistics and analysis',
   aiCoachFeature3: 'Unlimited reminders',
-  aiCoachFeature4: 'iCloud synchronization',
+  aiCoachFeature4: 'Add more than 3 habits',
   aiCoachPremiumBtn: 'Go Premium',
   aiCoachNotNow: 'Not now',
   aiCoachAnalyzeBtn: 'Analyze My Data',
@@ -930,6 +934,7 @@ export const en: Translations = {
   goalLabel: 'Goal',
   noDataToday: 'No data for today',
   sleepDetailHint: 'Record sleep by entering hours on the home card',
+  yearlyGoalLabel: 'Yearly Goal',
   dailyGoalLabel: 'Daily Goal',
   completed: 'Completed',
   hasData: 'Logged',
@@ -979,6 +984,7 @@ export const en: Translations = {
   aiCoachFreeMonths: '2 months free',
   monthlyLabel: 'Monthly',
   yearlyLabel: 'Yearly',
+  yearly: 'Yearly',
   turkeyLabel: 'Turkey',
   internationalLabel: 'International',
   successLabel: 'Success',

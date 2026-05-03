@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { HabitIcon } from '@/components/ui/HabitIcon';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { addNote, fetchNotes, deleteNote, FirebaseNote } from '@/src/services/notes';
+import { useTranslation } from '@/src/hooks/useTranslation';
 
 function toDisplay(dateStr: string, i18n: any): string {
   const [y, m, d] = dateStr.split('-').map(Number);

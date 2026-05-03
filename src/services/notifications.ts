@@ -10,6 +10,20 @@ Notifications.setNotificationHandler({
   }),
 });
 
+const HABIT_CHANNEL_ID = 'habit-reminders';
+
+async function setupNotificationChannel() {
+  if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync(HABIT_CHANNEL_ID, {
+      name: 'Alışkanlık Hatırlatıcıları',
+      importance: Notifications.AndroidImportance.HIGH,
+      sound: 'default',
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#FF231F7C',
+    });
+  }
+}
+
 export async function requestNotificationPermissions() {
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
   let finalStatus = existingStatus;
@@ -17,6 +31,11 @@ export async function requestNotificationPermissions() {
     const { status } = await Notifications.requestPermissionsAsync();
     finalStatus = status;
   }
+  
+  if (finalStatus === 'granted') {
+    await setupNotificationChannel();
+  }
+  
   return finalStatus === 'granted';
 }
 
@@ -37,10 +56,12 @@ export async function scheduleHabitReminder(habitId: string, habitName: string, 
       sound: true,
     },
     trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
       hour: hours,
       minute: minutes,
       repeats: true,
-    } as Notifications.DailyTriggerInput,
+      channelId: HABIT_CHANNEL_ID,
+    } as Notifications.NotificationTriggerInput,
   });
 }
 

@@ -24,6 +24,7 @@ export interface DoneHabit extends HabitBase {
 export interface TimeHabit extends HabitBase {
   type: 'time';
   goalMinutes: number; // target duration in minutes
+  goalPeriod: 'daily' | 'weekly' | 'monthly' | 'yearly';
 }
 
 export type BadLimitType = 'time' | 'count';
