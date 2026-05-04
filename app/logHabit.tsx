@@ -410,7 +410,7 @@ export default function LogHabitScreen() {
     { key: 'done', label: i18n.statusDid, style: 'filled' },
   ];
   
-  const { habits, updateLog, lastUsedHabitId, setLastUsedHabitId } = useHabitStore();
+  const { habits, updateLog, lastUsedHabitId, setLastUsedHabitId, logs } = useHabitStore();
   const { user, isGuest } = useAuthStore();
 
   const [selectedType, setSelectedType] = useState<HabitType>(params.type || 'done');
@@ -438,11 +438,6 @@ export default function LogHabitScreen() {
   const [durH, setDurH] = useState(0);
   const [durM, setDurM] = useState(0);
 
-  // Hedef Süre (Goal) — habit'den alınacak veya kullanıcı belirleyecek
-  const [goalH, setGoalH] = useState(0);
-  const [goalM, setGoalM] = useState(0);
-  const [goalPeriod, setGoalPeriod] = useState<'daily' | 'weekly' | 'yearly'>('daily');
-
   const activeHabits = useMemo(() => habits.filter((h) => !h.isArchived), [habits]);
   const filteredHabits = useMemo(() => activeHabits.filter((h) => h.type === selectedType), [activeHabits, selectedType]);
 
@@ -468,27 +463,40 @@ export default function LogHabitScreen() {
     )[0];
     setSelectedType(recent.type);
     setSelectedHabitId(recent.id);
-
-    if (recent.type === 'time') {
-      const th = recent as import('@/src/types/habit').TimeHabit;
-      setGoalH(Math.floor((th.goalMinutes || 0) / 60));
-      setGoalM((th.goalMinutes || 0) % 60);
-      setGoalPeriod(th.goalPeriod || 'daily');
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Alışkanlık değiştiğinde hedefi güncelle
+  // Alışkanlık veya tarih değiştiğinde mevcut kaydı yükle
   useEffect(() => {
-    if (!selectedHabitId) return;
-    const habit = activeHabits.find(h => h.id === selectedHabitId);
-    if (habit && habit.type === 'time') {
-      const th = habit as import('@/src/types/habit').TimeHabit;
-      setGoalH(Math.floor((th.goalMinutes || 0) / 60));
-      setGoalM((th.goalMinutes || 0) % 60);
-      setGoalPeriod(th.goalPeriod || 'daily');
+    if (!selectedHabitId || !selectedDate) return;
+    const existingLog = logs.find(l => l.habitId === selectedHabitId && l.date === selectedDate);
+    
+    if (existingLog) {
+      if (existingLog.elapsedMinutes !== undefined && selectedType !== 'time') {
+        setDurH(Math.floor(existingLog.elapsedMinutes / 60));
+        setDurM(existingLog.elapsedMinutes % 60);
+      } else {
+        setDurH(0);
+        setDurM(0);
+      }
+      // Uyku alışkanlığı için JSON verisini (saatleri) notlarda gösterme
+      const isSleepJson = selectedHabitId === 'habit-sleep' && existingLog.note?.startsWith('{');
+      setNotes(isSleepJson ? '' : (existingLog.note || ''));
+      if (selectedType === 'done') {
+        setStatus(existingLog.status as LogStatus);
+      } else if (selectedType === 'bad') {
+        setStatus(existingLog.status === 'failed' ? 'failed' : null);
+      }
+    } else {
+      // Kayıt yoksa sıfırla
+      setDurH(0);
+      setDurM(0);
+      setNotes('');
+      if (selectedType === 'done') setStatus('done');
+      else if (selectedType === 'bad') setStatus('failed');
+      else setStatus(null);
     }
-  }, [selectedHabitId, activeHabits]);
+  }, [selectedHabitId, selectedDate, logs, selectedType]);
 
   // Başlangıç/Bitiş modunda geçen süre
   const rangeMinutes = useMemo(() => {
@@ -516,25 +524,61 @@ export default function LogHabitScreen() {
     const habit = activeHabits.find((h) => h.id === selectedHabitId);
     if (!habit) return;
 
-    const noteValue = notes.trim() || undefined;
+    let noteValue = notes.trim() || undefined;
+
+    // Uyku alışkanlığı: Eğer yeni not girilmediyse ve eski kayıt JSON (saat verisi) ise onu koru
+    if (habit.id === 'habit-sleep' && !noteValue) {
+      const existingLog = logs.find(l => l.habitId === habit.id && l.date === selectedDate);
+      if (existingLog?.note?.startsWith('{')) {
+        noteValue = existingLog.note;
+      }
+    }
+
+    const entryId = Date.now().toString();
+    const newEntry: LogEntry = {
+      id: entryId,
+      minutes: elapsedMinutes,
+      createdAt: new Date().toISOString(),
+      ...(noteValue ? { note: noteValue } : {}),
+    };
 
     if (selectedType === 'time') {
-      const newGoalMinutes = goalH * 60 + goalM;
-      // Habit hedefini güncelle
-      updateHabit(habit.id, { goalMinutes: newGoalMinutes, goalPeriod: goalPeriod as any });
-      
-      updateLog(habit.id, selectedDate, { status: 'done', elapsedMinutes, note: noteValue });
+      const prevLog = logs.find(l => l.habitId === habit.id && l.date === selectedDate);
+      const prevMinutes = prevLog?.elapsedMinutes ?? 0;
+      const prevEntries = prevLog?.entries ?? [];
+      const newMinutes = prevMinutes + elapsedMinutes;
+      const newEntries = [...prevEntries, newEntry];
+
+      updateLog(habit.id, selectedDate, { 
+        status: 'done', 
+        elapsedMinutes: newMinutes, 
+        note: noteValue,
+        entries: newEntries
+      });
     } else if (selectedType === 'bad') {
-      const badHabit = habit as import('@/src/types/habit').BadHabit;
+      const badHabit = habit as BadHabit;
       const didIt = status === 'failed';
-      if (badHabit.limitType === 'count') {
-        // Adet bazlı: usedCount üstüne 1 ekle, status limitCount'a göre hesapla
-        const prevLog = useHabitStore.getState().getTodayLog(habit.id);
+      
+      if (badHabit.limitType === 'time') {
+        const prevLog = logs.find(l => l.habitId === habit.id && l.date === selectedDate);
+        const prevMinutes = prevLog?.usedMinutes ?? 0;
+        const prevEntries = prevLog?.entries ?? [];
+        const newMinutes = prevMinutes + elapsedMinutes;
+        const newEntries = [...prevEntries, newEntry];
+
+        updateLog(habit.id, selectedDate, { 
+          usedMinutes: newMinutes,
+          status: newMinutes <= (badHabit.limitMinutes || 60) ? 'done' : 'failed', 
+          note: noteValue,
+          entries: newEntries
+        });
+      } else if (badHabit.limitType === 'count') {
+        const prevLog = logs.find(l => l.habitId === habit.id && l.date === selectedDate);
         const prevCount = prevLog?.usedCount ?? 0;
         const newCount = prevCount + (didIt ? 1 : 0);
         updateLog(habit.id, selectedDate, {
           usedCount: didIt ? newCount : prevCount,
-          status: newCount >= badHabit.limitCount ? 'failed' : 'done',
+          status: newCount > (badHabit.limitCount || 1) ? 'failed' : 'done',
           note: noteValue,
         });
       } else {
@@ -557,21 +601,34 @@ export default function LogHabitScreen() {
       };
 
       if (selectedType === 'time') {
-        const newGoalMinutes = goalH * 60 + goalM;
-        // Firebase habit güncelle
-        updateHabitService(habit.id, { goalMinutes: newGoalMinutes, goalPeriod: goalPeriod as any });
+        const prevLog = logs.find(l => l.habitId === habit.id && l.date === selectedDate);
+        const prevMinutes = prevLog?.elapsedMinutes ?? 0;
+        const prevEntries = prevLog?.entries ?? [];
+        const newMinutes = prevMinutes + elapsedMinutes;
+        const newEntries = [...prevEntries, newEntry];
 
-        logData.elapsedMinutes = elapsedMinutes;
+        logData.elapsedMinutes = newMinutes;
         logData.status = 'done';
+        logData.entries = newEntries;
       } else if (selectedType === 'bad') {
-        const badHabit = habit as import('@/src/types/habit').BadHabit;
+        const badHabit = habit as BadHabit;
         const didIt = status === 'failed';
-        if (badHabit.limitType === 'count') {
-          const prevLog = useHabitStore.getState().getTodayLog(habit.id);
+        if (badHabit.limitType === 'time') {
+          const prevLog = logs.find(l => l.habitId === habit.id && l.date === selectedDate);
+          const prevMinutes = prevLog?.usedMinutes ?? 0;
+          const prevEntries = prevLog?.entries ?? [];
+          const newMinutes = prevMinutes + elapsedMinutes;
+          const newEntries = [...prevEntries, newEntry];
+
+          logData.usedMinutes = newMinutes;
+          logData.status = newMinutes <= (badHabit.limitMinutes || 60) ? 'done' : 'failed';
+          logData.entries = newEntries;
+        } else if (badHabit.limitType === 'count') {
+          const prevLog = logs.find(l => l.habitId === habit.id && l.date === selectedDate);
           const prevCount = prevLog?.usedCount ?? 0;
           const newCount = prevCount + (didIt ? 1 : 0);
           logData.usedCount = didIt ? newCount : prevCount;
-          logData.status = newCount >= badHabit.limitCount ? 'failed' : 'done';
+          logData.status = newCount > (badHabit.limitCount || 1) ? 'failed' : 'done';
         } else {
           logData.status = didIt ? 'failed' : 'done';
         }
@@ -764,8 +821,8 @@ export default function LogHabitScreen() {
               </>
             )}
 
-            {/* ══ TIME layout ══ */}
-            {selectedType === 'time' ? (
+            {/* ══ TIME / BAD-TIME layout ══ */}
+            {(selectedType === 'time' || (selectedType === 'bad' && (activeHabits.find(h => h.id === selectedHabitId) as BadHabit)?.limitType === 'time')) ? (
               <>
                 {/* Notes expandable */}
                 <TouchableOpacity style={styles.expandRow} onPress={() => togglePanel('notes')} activeOpacity={0.7}>
@@ -802,7 +859,6 @@ export default function LogHabitScreen() {
 
                   {/* Süre Spinner */}
                   <View style={styles.durationSpinner}>
-                    {/* Saat */}
                     <View style={styles.spinCol}>
                       <TouchableOpacity style={styles.spinBtn} onPress={() => setDurH((h) => Math.min(23, h + 1))} activeOpacity={0.7}>
                         <Ionicons name="chevron-up" size={24} color="rgba(192,132,252,0.85)" />
@@ -818,7 +874,6 @@ export default function LogHabitScreen() {
 
                     <Text style={styles.spinColon}>:</Text>
 
-                    {/* Dakika */}
                     <View style={styles.spinCol}>
                       <TouchableOpacity style={styles.spinBtn} onPress={() => setDurM((m) => (m + 5) % 60)} activeOpacity={0.7}>
                         <Ionicons name="chevron-up" size={24} color="rgba(192,132,252,0.85)" />
@@ -833,7 +888,6 @@ export default function LogHabitScreen() {
                     </View>
                   </View>
 
-                  {/* Hızlı seçim */}
                   <View style={styles.presetRow}>
                     {[
                       { label: `30 ${i18n.minUnitShort}`, h: 0, m: 30 },
@@ -856,119 +910,11 @@ export default function LogHabitScreen() {
                       );
                     })}
                   </View>
-
-                  {/* Süre özeti */}
-                  <View style={styles.elapsedRow}>
-                    <Text style={styles.elapsedLabel}>{i18n.elapsedTimeLabel}</Text>
-                    <Text style={[styles.elapsedVal, elapsedMinutes === 0 && styles.elapsedValZero]}>
-                      {elapsedMinutes === 0
-                        ? `0 ${i18n.minuteUnit}`
-                        : elapsedMinutes < 60
-                          ? `${elapsedMinutes} ${i18n.minuteUnit}`
-                          : `${Math.floor(elapsedMinutes / 60)} ${i18n.hourUnit} ${elapsedMinutes % 60 > 0 ? `${elapsedMinutes % 60} ${i18n.minuteUnit}` : ''}`}
-                    </Text>
-                  </View>
-
-                  <View style={styles.expandDivider} />
-
-                  {/* ── Hedef Süre Ayarı (Yeni) ── */}
-                  <View style={styles.goalSection}>
-                    <View style={styles.goalHeader}>
-                      <Ionicons name="flag-outline" size={14} color="#c084fc" />
-                      <Text style={styles.goalTitle}>{i18n.goalLabel}</Text>
-                    </View>
-                    
-                    <View style={styles.goalPeriodRow}>
-                      {(['daily', 'weekly', 'yearly'] as const).map((p) => {
-                        const isActive = goalPeriod === p;
-                        const label = p === 'daily' ? i18n.daily : p === 'weekly' ? i18n.weekly : i18n.yearly;
-                        return (
-                          <TouchableOpacity
-                            key={p}
-                            style={[styles.periodChip, isActive && styles.periodChipActive]}
-                            onPress={() => setGoalPeriod(p)}
-                          >
-                            <Text style={[styles.periodChipText, isActive && styles.periodChipTextActive]}>
-                              {label}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
-
-                    <View style={styles.goalInputRow}>
-                      <TouchableOpacity
-                        onPress={() => {
-                          const total = goalH * 60 + goalM;
-                          const next = Math.max(15, total - 15);
-                          setGoalH(Math.floor(next / 60));
-                          setGoalM(next % 60);
-                        }}
-                        style={styles.goalStepBtn}
-                      >
-                        <Ionicons name="remove" size={18} color="#c084fc" />
-                      </TouchableOpacity>
-
-                      <View style={styles.goalInputGroup}>
-                        <TextInput
-                          style={styles.goalInput}
-                          value={String(goalH)}
-                          onChangeText={(v) => setGoalH(parseInt(v) || 0)}
-                          keyboardType="number-pad"
-                          maxLength={2}
-                        />
-                        <Text style={styles.goalInputUnit}>{i18n.hourUnitShort}</Text>
-                      </View>
-                      <Text style={styles.goalInputColon}>:</Text>
-                      <View style={styles.goalInputGroup}>
-                        <TextInput
-                          style={styles.goalInput}
-                          value={String(goalM)}
-                          onChangeText={(v) => setGoalM(parseInt(v) || 0)}
-                          keyboardType="number-pad"
-                          maxLength={2}
-                        />
-                        <Text style={styles.goalInputUnit}>{i18n.minUnitShort}</Text>
-                      </View>
-
-                      <TouchableOpacity
-                        onPress={() => {
-                          const total = goalH * 60 + goalM;
-                          const next = total + 15;
-                          setGoalH(Math.floor(next / 60));
-                          setGoalM(next % 60);
-                        }}
-                        style={styles.goalStepBtn}
-                      >
-                        <Ionicons name="add" size={18} color="#c084fc" />
-                      </TouchableOpacity>
-                    </View>
-
-                    {/* Shortcuts */}
-                    <View style={styles.goalShortcutRow}>
-                      {[30, 60, 90, 120].map((mins) => (
-                        <TouchableOpacity
-                          key={mins}
-                          onPress={() => {
-                            setGoalH(Math.floor(mins / 60));
-                            setGoalM(mins % 60);
-                          }}
-                          style={styles.goalShortcutBtn}
-                        >
-                          <Text style={styles.goalShortcutText}>{mins} {i18n.minUnitShort}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                    
-                    <Text style={styles.goalHint}>
-                      {i18n.goalMet}: {goalH > 0 ? `${goalH} ${i18n.hourUnit} ` : ''}{goalM > 0 ? `${goalM} ${i18n.minuteUnit}` : ''} ({goalPeriod === 'daily' ? i18n.daily : goalPeriod === 'weekly' ? i18n.weekly : i18n.yearly})
-                    </Text>
-                  </View>
                 </View>
               </>
             ) : (
               <>
-                {/* ══ DONE / BAD layout ══ */}
+                {/* ══ DONE / BAD-COUNT layout ══ */}
                 <TouchableOpacity style={styles.expandRow} onPress={() => togglePanel('notes')} activeOpacity={0.7}>
                   <Text style={styles.expandText}>{i18n.notesLabel}</Text>
                   <Ionicons name={openPanel === 'notes' ? 'chevron-up' : 'chevron-down'} size={13} color="rgba(255,255,255,0.38)" />
@@ -1372,112 +1318,4 @@ const styles = StyleSheet.create({
   saveGrad: { paddingVertical: 14, alignItems: 'center', justifyContent: 'center' },
   saveText: { fontSize: 15, fontWeight: '700', color: '#fff' },
 
-  // Goal section
-  goalSection: {
-    width: '100%',
-    paddingTop: 10,
-    gap: 12,
-  },
-  goalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  goalTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#e9d5ff',
-    letterSpacing: 0.5,
-  },
-  goalPeriodRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  periodChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    backgroundColor: 'rgba(255,255,255,0.05)',
-  },
-  periodChipActive: {
-    borderColor: '#c084fc',
-    backgroundColor: 'rgba(168,85,247,0.25)',
-  },
-  periodChipText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.4)',
-  },
-  periodChipTextActive: {
-    color: '#fff',
-  },
-  goalInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 12,
-    padding: 10,
-    alignSelf: 'flex-start',
-  },
-  goalStepBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: 'rgba(168,85,247,0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(192,132,252,0.3)',
-  },
-  goalInputGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  goalInput: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#fff',
-    minWidth: 30,
-    textAlign: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 6,
-    paddingHorizontal: 4,
-  },
-  goalInputUnit: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.5)',
-    fontWeight: '600',
-  },
-  goalInputColon: {
-    fontSize: 20,
-    color: 'rgba(255,255,255,0.3)',
-    fontWeight: '300',
-  },
-  goalShortcutRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 4,
-  },
-  goalShortcutBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  goalShortcutText: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.5)',
-    fontWeight: '600',
-  },
-  goalHint: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.35)',
-    fontStyle: 'italic',
-  },
 });

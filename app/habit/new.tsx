@@ -12,6 +12,7 @@ import {
   StatusBar,
   Modal,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -22,13 +23,14 @@ import { createHabit } from '@/src/services/habits';
 import { scheduleHabitReminder } from '@/src/services/notifications';
 import { serverTimestamp } from 'firebase/firestore';
 import { HabitIcon } from '@/components/ui/HabitIcon';
-import { HabitType, DoneHabit, TimeHabit, BadHabit, BadLimitPeriod } from '@/src/types/habit';
+import { HabitType, DoneHabit, TimeHabit, BadHabit, BadLimitPeriod, BadLimitType } from '@/src/types/habit';
 import { validateHabitName, validateGoalMinutes } from '@/src/utils/validators';
 import { HABIT_ICONS } from '@/constants/templates';
 import { LAYOUT } from '@/constants/layout';
 import { FONTS } from '@/constants/fonts';
 import { useAppTheme } from '@/src/hooks/useAppTheme';
 import { useTranslation } from '@/src/hooks/useTranslation';
+import { HabitTypeIntroModal } from '@/components/habit/HabitTypeIntroModal';
 
 const COLOR_OPTIONS = [
   '#7C3AED', '#3B82F6', '#06B6D4', '#10B981', '#F59E0B', '#F97316', '#EF4444', '#EC4899',
@@ -56,6 +58,8 @@ export default function NewHabitScreen() {
   const [goalPeriod, setGoalPeriod] = useState<'daily' | 'weekly' | 'yearly'>('daily');
   const [limitPeriod, setLimitPeriod] = useState<BadLimitPeriod>('daily');
   const [limitCount, setLimitCount] = useState(1);
+  const [limitType, setLimitType] = useState<BadLimitType>('count');
+  const [limitMinutes, setLimitMinutes] = useState(30);
   const [frequency, setFrequency] = useState(i18n.freqEveryday);
   const [customDays, setCustomDays] = useState<boolean[]>(Array(7).fill(false));
 
@@ -76,6 +80,39 @@ export default function NewHabitScreen() {
 
   const togglePanel = (panel: 'frequency' | 'reminder' | 'icon' | 'period') =>
     setOpenPanel((prev) => (prev === panel ? null : panel));
+
+  // ── Intro Modal Logic ──
+  const [showIntro, setShowIntro] = useState(false);
+  const [introType, setIntroType] = useState<HabitType>('done');
+  const [seenIntros, setSeenIntros] = useState<string[]>([]);
+
+  React.useEffect(() => {
+    loadSeenIntros();
+  }, []);
+
+  const loadSeenIntros = async () => {
+    try {
+      const stored = await AsyncStorage.getItem('seen_habit_type_intros');
+      if (stored) setSeenIntros(JSON.parse(stored));
+    } catch (e) {}
+  };
+
+  const handleTypeSelect = async (newType: HabitType) => {
+    setType(newType);
+    if (!seenIntros.includes(newType)) {
+      setIntroType(newType);
+      setShowIntro(true);
+    }
+  };
+
+  const handleCloseIntro = async () => {
+    setShowIntro(false);
+    const newSeen = [...seenIntros, introType];
+    setSeenIntros(newSeen);
+    try {
+      await AsyncStorage.setItem('seen_habit_type_intros', JSON.stringify(newSeen));
+    } catch (e) {}
+  };
 
   const handleSave = async () => {
     const nameValidation = validateHabitName(name);
@@ -122,8 +159,9 @@ export default function NewHabitScreen() {
 
       if (type === 'bad') {
         habitData.limitCount = limitCount;
+        habitData.limitMinutes = limitMinutes;
         habitData.limitPeriod = limitPeriod;
-        habitData.limitType = 'count';
+        habitData.limitType = limitType;
       }
 
       const newHabit = await createHabit(habitData);
@@ -141,10 +179,10 @@ export default function NewHabitScreen() {
       } else {
         addHabit({
           ...base,
-          limitType: 'count',
+          limitType,
           limitPeriod,
-          limitMinutes: 0,
-          limitCount,
+          limitMinutes: limitType === 'time' ? limitMinutes : 0,
+          limitCount: limitType === 'count' ? limitCount : 0,
           reminderEnabled,
           reminderTime,
         } as Omit<BadHabit, 'id' | 'createdAt' | 'updatedAt' | 'userId' | 'isArchived' | 'sortOrder'>);
@@ -213,6 +251,19 @@ export default function NewHabitScreen() {
             contentContainerStyle={styles.scroll}
             keyboardShouldPersistTaps="handled"
           >
+            {/* ── Info Button ── */}
+            <TouchableOpacity
+              style={[styles.infoBtn, { borderColor: t.rowBorder }]}
+              onPress={() => { setIntroType(type); setShowIntro(true); }}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="information-circle-outline" size={16} color="#c084fc" />
+              <Text style={styles.infoBtnText}>
+                {type === 'done' ? i18n.typeDone : type === 'time' ? i18n.typeTime : i18n.typeBad} nedir?
+              </Text>
+              <Ionicons name="chevron-forward" size={12} color="rgba(255,255,255,0.25)" />
+            </TouchableOpacity>
+
             {/* ── Choose Habit Type ── */}
             <View style={styles.centeredLabelRow}>
               <View style={[styles.labelLine, { backgroundColor: t.tLabel }]} />
@@ -230,7 +281,7 @@ export default function NewHabitScreen() {
                 return (
                   <TouchableOpacity
                     key={opt.key}
-                    onPress={() => setType(opt.key)}
+                    onPress={() => handleTypeSelect(opt.key)}
                     activeOpacity={0.75}
                     style={styles.typeButtonWrapper}
                   >
@@ -346,6 +397,31 @@ export default function NewHabitScreen() {
                 </TouchableOpacity>
                 {openPanel === 'period' && (
                   <View style={[styles.limitPanel, { backgroundColor: t.panelBg, borderColor: t.panelBorder }]}>
+                    {/* Limit Type Selector */}
+                    <Text style={[styles.limitPanelLabel, { color: t.t3 }]}>Limit Tipi</Text>
+                    <View style={[styles.limitTypeToggle, { marginBottom: 16 }]}>
+                      <TouchableOpacity
+                        onPress={() => setLimitType('count')}
+                        style={[
+                          styles.limitTypeBtn,
+                          { borderColor: t.rowBorder, backgroundColor: t.rowBg },
+                          limitType === 'count' && styles.limitTypeBtnActive
+                        ]}
+                      >
+                        <Text style={[styles.limitTypeBtnText, { color: limitType === 'count' ? '#fff' : t.t3 }]}>Kez</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => setLimitType('time')}
+                        style={[
+                          styles.limitTypeBtn,
+                          { borderColor: t.rowBorder, backgroundColor: t.rowBg },
+                          limitType === 'time' && styles.limitTypeBtnActive
+                        ]}
+                      >
+                        <Text style={[styles.limitTypeBtnText, { color: limitType === 'time' ? '#fff' : t.t3 }]}>Süre</Text>
+                      </TouchableOpacity>
+                    </View>
+
                     {/* Period seçici */}
                     <Text style={[styles.limitPanelLabel, { color: t.t3 }]}>{i18n.periodLabel}</Text>
                     <View style={styles.periodBtnRow}>
@@ -374,19 +450,36 @@ export default function NewHabitScreen() {
                       })}
                     </View>
 
-                    {/* Kaç kez stepper */}
-                    <Text style={[styles.limitPanelLabel, { color: t.t3, marginTop: 14 }]}>{i18n.timesLabel}</Text>
+                    {/* Değer seçici (Count veya Minutes) */}
+                    <Text style={[styles.limitPanelLabel, { color: t.t3, marginTop: 14 }]}>
+                      {limitType === 'count' ? i18n.timesLabel : 'Süre Limiti'}
+                    </Text>
                     <View style={styles.stepperRow}>
                       <TouchableOpacity
-                        onPress={() => setLimitCount((c) => Math.max(1, c - 1))}
+                        onPress={() => {
+                          if (limitType === 'count') setLimitCount((c) => Math.max(1, c - 1));
+                          else setLimitMinutes((m) => Math.max(5, m - 5));
+                        }}
                         style={[styles.stepperBtn, { backgroundColor: t.rowBg, borderColor: t.rowBorder }]}
                         activeOpacity={0.75}
                       >
                         <Ionicons name="remove" size={18} color={t.t2} />
                       </TouchableOpacity>
-                      <Text style={[styles.stepperValue, { color: t.t1 }]}>{limitCount}</Text>
+                      
+                      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
+                        <Text style={[styles.stepperValue, { color: t.t1 }]}>
+                          {limitType === 'count' ? limitCount : limitMinutes}
+                        </Text>
+                        <Text style={[styles.stepperUnit, { color: t.t3 }]}>
+                          {limitType === 'count' ? i18n.stepperTimes : i18n.minUnitShort}
+                        </Text>
+                      </View>
+
                       <TouchableOpacity
-                        onPress={() => setLimitCount((c) => Math.min(99, c + 1))}
+                        onPress={() => {
+                          if (limitType === 'count') setLimitCount((c) => Math.min(99, c + 1));
+                          else setLimitMinutes((m) => Math.min(1440, m + 5));
+                        }}
                         style={[styles.stepperBtn, { backgroundColor: t.rowBg, borderColor: t.rowBorder }]}
                         activeOpacity={0.75}
                       >
@@ -674,6 +767,12 @@ export default function NewHabitScreen() {
           </View>
         </KeyboardAvoidingView>
       </SafeAreaView>
+
+      <HabitTypeIntroModal
+        visible={showIntro}
+        type={introType}
+        onClose={handleCloseIntro}
+      />
     </View>
   );
 }
@@ -712,7 +811,7 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     marginHorizontal: LAYOUT.spacing.md,
-    marginBottom: 32,
+    marginBottom: 12,
   },
 
   scroll: {
@@ -744,6 +843,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     marginBottom: 36,
+  },
+  infoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    backgroundColor: 'rgba(192,132,252,0.06)',
+    marginBottom: 14,
+  },
+  infoBtnText: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.50)',
+    fontFamily: 'InriaSerif_700Bold',
   },
   typeButtonWrapper: { flex: 1, borderRadius: 12, overflow: 'hidden' },
   typeButtonActive: {
@@ -931,6 +1047,10 @@ const styles = StyleSheet.create({
   limitTypeBtnActive: {
     backgroundColor: '#7c3aed',
     borderColor: '#c084fc',
+  },
+  limitTypeBtnText: {
+    fontSize: 13,
+    fontFamily: 'InriaSerif_700Bold',
   },
   // Reminder styles
   reminderToggleRow: {

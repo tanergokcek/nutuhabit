@@ -53,7 +53,7 @@ export default function RegisterScreen() {
   const [showPwConfirm, setShowPwConfirm] = useState(false);
   const [focused, setFocused] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [socialLoading, setSocialLoading] = useState<'google' | 'apple' | null>(null);
+  const [socialLoading, setSocialLoading] = useState<'google' | null>(null);
 
   const strength = getPasswordStrength(password);
   const passwordsMatch = password && passwordConfirm && password === passwordConfirm;
@@ -138,7 +138,7 @@ export default function RegisterScreen() {
     }
   };
 
-  const handleSocial = (provider: 'google' | 'apple') => {
+  const handleSocial = (provider: 'google') => {
     setSocialLoading(provider);
     // TODO: connect auth
     setTimeout(() => {
@@ -376,21 +376,7 @@ export default function RegisterScreen() {
                   }
                 </TouchableOpacity>
 
-                {/* Apple */}
-                <TouchableOpacity
-                  style={[s.socialBtn, s.appleBtn]}
-                  onPress={() => handleSocial('apple')}
-                  activeOpacity={0.85}
-                  disabled={!!socialLoading}
-                >
-                  {socialLoading === 'apple'
-                    ? <ActivityIndicator color="#fff" />
-                    : <>
-                        <Ionicons name="logo-apple" size={20} color="#fff" />
-                        <Text style={[s.socialBtnText, { color: '#fff' }]}>Apple ile kayıt ol</Text>
-                      </>
-                  }
-                </TouchableOpacity>
+
               </View>
             </BlurView>
 

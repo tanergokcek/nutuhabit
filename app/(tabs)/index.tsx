@@ -1019,7 +1019,7 @@ const sleepStyles = StyleSheet.create({
 // ─── Günlük 24 Saatlik Zaman Barı ────────────────────────────────────────────
 const TOTAL_DAY_MINUTES = 24 * 60; // 1440
 
-function DailyTimeBarCard({ allTimeHabits, selectedDate, t }: { allTimeHabits: TimeHabit[]; selectedDate: string; t: ThemeTokens }) {
+function DailyTimeBarCard({ habits, selectedDate, t }: { habits: Habit[]; selectedDate: string; t: ThemeTokens }) {
   const i18n = useTranslation();
   const logs = useHabitStore((state) => state.logs);
   const { language } = useLanguageStore();
@@ -1049,17 +1049,26 @@ function DailyTimeBarCard({ allTimeHabits, selectedDate, t }: { allTimeHabits: T
   }, []);
 
   const segments = useMemo(() => {
-    return allTimeHabits.map((h) => {
+    const timeHabits = habits.filter((h) => !h.isArchived && (h.type === 'time' || (h.type === 'bad' && (h as BadHabit).limitType === 'time')));
+    // Add sleep habit if not present
+    const list = [...timeHabits];
+    if (!list.some(h => h.id === SLEEP_HABIT_ID)) {
+      list.unshift(SLEEP_HABIT);
+    }
+
+    return list.map((h) => {
       const log = logs.find((l) => l.habitId === h.id && l.date === selectedDate);
+      const isBad = h.type === 'bad';
       return {
         id: h.id,
         name: h.name,
         icon: h.icon,
-        color: h.color ?? '#8B5CF6',
-        minutes: log?.elapsedMinutes ?? 0,
+        color: isBad ? '#ef4444' : (h.color ?? '#8B5CF6'),
+        minutes: isBad ? (log?.usedMinutes ?? 0) : (log?.elapsedMinutes ?? 0),
+        isBad
       };
     }).filter((s) => s.minutes > 0);
-  }, [allTimeHabits, logs, selectedDate]);
+  }, [habits, logs, selectedDate]);
 
   const totalMinutes = useMemo(() => segments.reduce((sum, s) => sum + s.minutes, 0), [segments]);
   const cappedTotal = Math.min(TOTAL_DAY_MINUTES, totalMinutes);
@@ -1103,11 +1112,18 @@ function DailyTimeBarCard({ allTimeHabits, selectedDate, t }: { allTimeHabits: T
       <Animated.View style={{ maxHeight: bodyMaxH, opacity: bodyOpacity, overflow: 'hidden' }}>
         {/* 24 saatlik bar */}
         <View style={dBarStyles.track}>
-          <LinearGradient
-            colors={['#7c3aed', '#a855f7', '#ec4899']}
-            style={[dBarStyles.progressFill, { width: `${totalPct}%` as `${number}%` }]}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-          />
+          {segments.map((seg, idx) => {
+            const width = (seg.minutes / TOTAL_DAY_MINUTES) * 100;
+            return (
+              <View
+                key={seg.id}
+                style={[
+                  dBarStyles.segmentFill,
+                  { width: `${width}%` as `${number}%`, backgroundColor: seg.color }
+                ]}
+              />
+            );
+          })}
         </View>
         {/* infoRow kaldırıldı (başlıkta zaten özet var) */}
 
@@ -1175,10 +1191,10 @@ const dBarStyles = StyleSheet.create({
   subtitleText: { ...textStyles.caption2 },                                            // 11pt
 
   track: {
-    height: 4, backgroundColor: 'rgba(255,255,255,0.10)',
-    borderRadius: 3, overflow: 'hidden',
+    height: 6, backgroundColor: 'rgba(255,255,255,0.10)',
+    borderRadius: 3, overflow: 'hidden', flexDirection: 'row'
   },
-  progressFill: { height: '100%', borderRadius: 3 },
+  segmentFill: { height: '100%' },
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: -2 },
   pctText: { ...textStyles.caption2Medium },      // 11pt medium
   sleptText: { ...textStyles.caption2 },            // 11pt
@@ -1417,34 +1433,44 @@ function BadHabitFeaturedCard({ habit, selectedDate, onPress, t }: { habit: BadH
   const logs = useMemo(() => allLogs.filter((l) => l.habitId === habit.id), [allLogs, habit.id]);
   const weekDays = getWeekDays(i18n.weekDays);
 
-  const weekFailed = useMemo(() => {
-    return weekDays.filter((d) => {
-      const log = logs.find((l) => l.date === d.dateStr);
-      return log?.status === 'failed';
-    }).length;
-  }, [logs, weekDays]);
+  const isTime = habit.limitType === 'time';
+  const limitVal = isTime ? (habit.limitMinutes || 0) : (habit.limitCount || 0);
 
-  // Period'a göre kullanım sayısını hesapla ve limitCount ile karşılaştır
-  const periodFailed = useMemo(() => {
+  // Periyot bazında kullanımı (süre veya adet) hesapla
+  const periodUsage = useMemo(() => {
+    const selDate = new Date(selectedDate);
+    const sumUsage = (targetLogs: HabitLog[]) => {
+      return targetLogs.reduce((acc, l) => {
+        if (isTime) return acc + (l.usedMinutes || 0);
+        return acc + (l.usedCount ?? (l.status === 'failed' ? 1 : 0));
+      }, 0);
+    };
+
     if (habit.limitPeriod === 'daily') {
-      const todayLog = logs.find((l) => l.date === getTodayString());
-      return todayLog?.status === 'failed' ? 1 : 0;
+      const targetLog = logs.find((l) => l.date === selectedDate);
+      if (!targetLog) return 0;
+      return isTime ? (targetLog.usedMinutes || 0) : (targetLog.usedCount ?? (targetLog.status === 'failed' ? 1 : 0));
     }
-    if (habit.limitPeriod === 'monthly') {
-      const now = new Date();
-      const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-      return logs.filter((l) => l.date.startsWith(monthStr) && l.status === 'failed').length;
-    }
-    // weekly (default)
-    return weekFailed;
-  }, [logs, weekDays, habit.limitPeriod, weekFailed]);
 
-  const limitVal = habit.limitType === 'time' ? (habit.limitMinutes || 0) : (habit.limitCount || 0);
-  const exceeded = periodFailed > limitVal;
+    if (habit.limitPeriod === 'monthly') {
+      const monthStr = `${selDate.getFullYear()}-${String(selDate.getMonth() + 1).padStart(2, '0')}`;
+      const monthLogs = logs.filter((l) => l.date.startsWith(monthStr));
+      return sumUsage(monthLogs);
+    }
+
+    // weekly (default) - uses current weekDays for now, which is consistent with the UI strip
+    const weekLogs = logs.filter(l => weekDays.some(d => d.dateStr === l.date));
+    return sumUsage(weekLogs);
+  }, [logs, weekDays, habit.limitPeriod, habit.limitType, isTime, selectedDate]);
+
+  const exceeded = periodUsage > limitVal;
 
   const weekLogs = weekDays.map((d) => {
     const log = logs.find((l) => l.date === d.dateStr);
-    return { dateStr: d.dateStr, status: log?.status === 'failed' ? 'done' : undefined };
+    const hasViolation = isTime 
+      ? (log?.usedMinutes || 0) > habit.limitMinutes 
+      : (log?.usedCount ?? (log?.status === 'failed' ? 1 : 0)) > habit.limitCount;
+    return { dateStr: d.dateStr, status: hasViolation ? 'done' : undefined };
   });
 
   return (
@@ -1464,13 +1490,14 @@ function BadHabitFeaturedCard({ habit, selectedDate, onPress, t }: { habit: BadH
         <View style={darkCardStyles.nameCol}>
           <Text style={[darkCardStyles.name, { color: t.t1 }]}>{habit.name}</Text>
           <Text style={[darkCardStyles.sub, { color: t.t2 }]}>
-            {i18n.limitLabel + ' '}{habit.limitType === 'count' || (!habit.limitType && habit.limitCount) ? `${habit.limitCount || 0} ${i18n.timesUnit}` : formatMinutes(habit.limitMinutes || 0)}{' · '}{habit.limitPeriod === 'daily' ? i18n.daily : habit.limitPeriod === 'weekly' ? i18n.weekly : i18n.monthly}
+            {i18n.limitLabel + ' '}{isTime ? formatMinutes(habit.limitMinutes || 0) : `${habit.limitCount || 0} ${i18n.timesUnit}`}{' · '}{habit.limitPeriod === 'daily' ? i18n.daily : habit.limitPeriod === 'weekly' ? i18n.weekly : i18n.monthly}
           </Text>
           <WeekDotRow logs={weekLogs} selectedDate={selectedDate} />
         </View>
         <View style={darkCardStyles.rightCol}>
           <Text style={[darkCardStyles.bigNum, { color: t.t1 }, exceeded && { color: '#f87171' }]}>
-            {periodFailed}<Text style={[darkCardStyles.unit, { color: t.t2 }]}>×</Text>
+            {isTime ? formatMinutes(periodUsage) : periodUsage}
+            {!isTime && <Text style={[darkCardStyles.unit, { color: t.t2 }]}>×</Text>}
           </Text>
           <Text style={[darkCardStyles.bigLabel, { color: t.t2 }, exceeded && { color: '#fca5a5' }]}>
             {exceeded
@@ -1478,8 +1505,8 @@ function BadHabitFeaturedCard({ habit, selectedDate, onPress, t }: { habit: BadH
               : habit.limitPeriod === 'daily'
                 ? i18n.todayLabel
                 : habit.limitPeriod === 'monthly'
-                  ? i18n.thisMonth
-                  : i18n.thisWeek}
+                  ? i18n.monthlyLabel
+                  : i18n.weeklyLabel}
           </Text>
         </View>
       </View>
@@ -1877,7 +1904,7 @@ export default function HomeScreen() {
           }
         >
           {/* ── Günlük Zaman Barı ── */}
-          <DailyTimeBarCard allTimeHabits={allTimeHabits} selectedDate={selectedDate} t={t} />
+          <DailyTimeBarCard habits={habits} selectedDate={selectedDate} t={t} />
 
           {/* ── Sleep Schedule ── */}
           <SleepCard

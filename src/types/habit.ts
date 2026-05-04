@@ -40,6 +40,13 @@ export interface BadHabit extends HabitBase {
 
 export type Habit = DoneHabit | TimeHabit | BadHabit;
 
+export interface LogEntry {
+  id: string;
+  minutes: number;
+  note?: string;
+  createdAt: string; // ISO date string
+}
+
 export interface HabitLog {
   id: string;
   habitId: string;
@@ -53,6 +60,7 @@ export interface HabitLog {
   usedMinutes?: number;
   usedCount?: number;   // count-based bad habit: kaç kez yapıldı
   note?: string;
+  entries?: LogEntry[]; // Multiple entries per day
   createdAt: string;
   updatedAt: string;
 }

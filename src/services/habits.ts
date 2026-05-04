@@ -191,8 +191,12 @@ export async function fetchLogs(
           } else if (colName === 'logs_time') {
             log.elapsedMinutes = data.Duration;
             log.status = 'done';
+            if (data.Entries) log.entries = data.Entries;
           } else if (colName === 'logs_bad') {
             log.status = data.Status === 'yaptım' ? 'failed' : 'done';
+            if (data.Duration !== undefined) log.usedMinutes = data.Duration;
+            if (data.usedCount !== undefined) log.usedCount = data.usedCount;
+            if (data.Entries) log.entries = data.Entries;
           }
 
           allLogs.push(log);
@@ -224,12 +228,22 @@ export async function upsertLog(
       data.Note = log.note;
     }
 
+    if (log.entries !== undefined) {
+      data.Entries = log.entries;
+    }
+
     if (habitType === 'time') {
       collectionName = 'logs_time';
       data.Duration = log.elapsedMinutes || 0;
     } else if (habitType === 'bad') {
       collectionName = 'logs_bad';
       data.Status = log.status === 'failed' ? 'yaptım' : 'yapmadım';
+      if ((log as any).usedMinutes !== undefined) {
+        data.Duration = (log as any).usedMinutes;
+      }
+      if ((log as any).usedCount !== undefined) {
+        data.usedCount = (log as any).usedCount;
+      }
     } else {
       collectionName = 'logs_done';
       const statusMap: Record<LogStatus, string> = {
@@ -253,6 +267,22 @@ export async function upsertLog(
     let logId = "";
     const now = serverTimestamp();
     
+    // Remove undefined values from data
+    Object.keys(data).forEach(key => {
+      if (data[key] === undefined) delete data[key];
+    });
+
+    // Sanitize Entries array if it exists
+    if (data.Entries && Array.isArray(data.Entries)) {
+      data.Entries = data.Entries.map((entry: any) => {
+        const sanitized = { ...entry };
+        Object.keys(sanitized).forEach(k => {
+          if (sanitized[k] === undefined) delete sanitized[k];
+        });
+        return sanitized;
+      });
+    }
+
     if (!querySnapshot.empty) {
       logId = querySnapshot.docs[0].id;
       const logRef = doc(db, collectionName, logId);

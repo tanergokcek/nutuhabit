@@ -17,10 +17,14 @@ interface BadHabitCounterProps {
 export function BadHabitCounter({ habit, log }: BadHabitCounterProps) {
   const updateLog = useHabitStore((state) => state.updateLog);
 
-  const usedMinutes = log?.usedMinutes ?? 0;
-  const remaining = Math.max(0, habit.limitMinutes - usedMinutes);
-  const progress = Math.min(1, usedMinutes / habit.limitMinutes);
-  const isOverLimit = usedMinutes > habit.limitMinutes;
+  const isTimeLimit = habit.limitType === 'time';
+  
+  const usedValue = isTimeLimit ? (log?.usedMinutes ?? 0) : (log?.usedCount ?? 0);
+  const limitValue = isTimeLimit ? (habit.limitMinutes || 60) : (habit.limitCount || 1);
+  
+  const remaining = Math.max(0, limitValue - usedValue);
+  const progress = Math.min(1, usedValue / limitValue);
+  const isOverLimit = usedValue > limitValue;
 
   const dangerLevel = progress < 0.5
     ? 'safe'
@@ -35,20 +39,21 @@ export function BadHabitCounter({ habit, log }: BadHabitCounterProps) {
       ? COLORS.warning
       : COLORS.danger;
 
-  const handleAdd = (minutes: number) => {
-    const newUsed = usedMinutes + minutes;
-    updateLog(habit.id, getTodayString(), {
-      usedMinutes: newUsed,
-      status: newUsed <= habit.limitMinutes ? 'done' : 'failed',
-    });
-  };
-
-  const handleSubtract = (minutes: number) => {
-    const newUsed = Math.max(0, usedMinutes - minutes);
-    updateLog(habit.id, getTodayString(), {
-      usedMinutes: newUsed,
-      status: newUsed <= habit.limitMinutes ? 'done' : 'failed',
-    });
+  const handleUpdate = (amount: number) => {
+    const newValue = usedValue + amount;
+    const finalValue = Math.max(0, newValue);
+    
+    if (isTimeLimit) {
+      updateLog(habit.id, getTodayString(), {
+        usedMinutes: finalValue,
+        status: finalValue <= limitValue ? 'done' : 'failed',
+      });
+    } else {
+      updateLog(habit.id, getTodayString(), {
+        usedCount: finalValue,
+        status: finalValue <= limitValue ? 'done' : 'failed',
+      });
+    }
   };
 
   const progressBarWidth = `${Math.round(progress * 100)}%` as `${number}%`;
@@ -59,21 +64,21 @@ export function BadHabitCounter({ habit, log }: BadHabitCounterProps) {
       <View style={styles.statusRow}>
         <View>
           <Text style={[styles.usedText, { color: isOverLimit ? '#F87171' : 'rgba(255,255,255,0.95)' }]}>
-            {formatMinutes(usedMinutes)}
+            {isTimeLimit ? formatMinutes(usedValue) : `${usedValue} kez`}
           </Text>
-          <Text style={styles.limitText}>/ {formatMinutes(habit.limitMinutes)} limit</Text>
+          <Text style={styles.limitText}>/ {isTimeLimit ? formatMinutes(limitValue) : `${limitValue} kez`} limit</Text>
         </View>
 
         {!isOverLimit ? (
           <View style={[styles.remainingBadge, { backgroundColor: 'rgba(34,197,94,0.15)', borderColor: 'rgba(34,197,94,0.30)' }]}>
             <Text style={[styles.remainingText, { color: '#4ade80' }]}>
-              {formatMinutes(remaining)} kaldı
+              {isTimeLimit ? formatMinutes(remaining) : `${remaining} kaldı`}
             </Text>
           </View>
         ) : (
           <View style={[styles.remainingBadge, { backgroundColor: 'rgba(239,68,68,0.15)', borderColor: 'rgba(239,68,68,0.30)' }]}>
             <Text style={[styles.remainingText, { color: '#F87171' }]}>
-              {formatMinutes(usedMinutes - habit.limitMinutes)} aşıldı!
+              {isTimeLimit ? formatMinutes(usedValue - limitValue) : `${usedValue - limitValue} kez`} aşıldı!
             </Text>
           </View>
         )}
@@ -91,47 +96,74 @@ export function BadHabitCounter({ habit, log }: BadHabitCounterProps) {
 
       {/* Controls */}
       <View style={styles.controls}>
-        <TouchableOpacity
-          onPress={() => handleSubtract(5)}
-          style={styles.subBtn}
-          activeOpacity={0.75}
-        >
-          <Text style={styles.subBtnText}>-5 dk</Text>
-        </TouchableOpacity>
+        {isTimeLimit ? (
+          <>
+            <TouchableOpacity
+              onPress={() => handleUpdate(-5)}
+              style={styles.subBtn}
+              activeOpacity={0.75}
+            >
+              <Text style={styles.subBtnText}>-5 dk</Text>
+            </TouchableOpacity>
 
-        <TouchableOpacity
-          onPress={() => handleSubtract(15)}
-          style={styles.subBtn}
-          activeOpacity={0.75}
-        >
-          <Text style={styles.subBtnText}>-15 dk</Text>
-        </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => handleUpdate(-15)}
+              style={styles.subBtn}
+              activeOpacity={0.75}
+            >
+              <Text style={styles.subBtnText}>-15 dk</Text>
+            </TouchableOpacity>
 
-        <TouchableOpacity
-          onPress={() => handleAdd(15)}
-          activeOpacity={0.75}
-          style={styles.addBtnWrapper}
-        >
-          <LinearGradient
-            colors={dangerLevel === 'safe' ? ['#9333ea', '#7c3aed'] : [barColor, barColor]}
-            style={styles.addBtn}
-          >
-            <Text style={styles.addBtnText}>+15 dk</Text>
-          </LinearGradient>
-        </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => handleUpdate(15)}
+              activeOpacity={0.75}
+              style={styles.addBtnWrapper}
+            >
+              <LinearGradient
+                colors={dangerLevel === 'safe' ? ['#9333ea', '#7c3aed'] : [barColor, barColor]}
+                style={styles.addBtn}
+              >
+                <Text style={styles.addBtnText}>+15 dk</Text>
+              </LinearGradient>
+            </TouchableOpacity>
 
-        <TouchableOpacity
-          onPress={() => handleAdd(30)}
-          activeOpacity={0.75}
-          style={styles.addBtnWrapper}
-        >
-          <LinearGradient
-            colors={dangerLevel === 'safe' ? ['#9333ea', '#7c3aed'] : [barColor, barColor]}
-            style={styles.addBtn}
-          >
-            <Text style={styles.addBtnText}>+30 dk</Text>
-          </LinearGradient>
-        </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => handleUpdate(30)}
+              activeOpacity={0.75}
+              style={styles.addBtnWrapper}
+            >
+              <LinearGradient
+                colors={dangerLevel === 'safe' ? ['#9333ea', '#7c3aed'] : [barColor, barColor]}
+                style={styles.addBtn}
+              >
+                <Text style={styles.addBtnText}>+30 dk</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            <TouchableOpacity
+              onPress={() => handleUpdate(-1)}
+              style={styles.subBtn}
+              activeOpacity={0.75}
+            >
+              <Text style={styles.subBtnText}>-1 kez</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => handleUpdate(1)}
+              activeOpacity={0.75}
+              style={styles.addBtnWrapper}
+            >
+              <LinearGradient
+                colors={dangerLevel === 'safe' ? ['#9333ea', '#7c3aed'] : [barColor, barColor]}
+                style={styles.addBtn}
+              >
+                <Text style={styles.addBtnText}>+1 kez</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </>
+        )}
       </View>
     </View>
   );

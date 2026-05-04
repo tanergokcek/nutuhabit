@@ -77,7 +77,7 @@ export default function LoginScreen() {
   const [showPwd, setShowPwd]   = useState(false);
   const [focused, setFocused]   = useState<string | null>(null);
   const [loading, setLoading]   = useState(false);
-  const [socialLoading, setSocialLoading] = useState<'google' | 'apple' | null>(null);
+  const [socialLoading, setSocialLoading] = useState<'google' | null>(null);
 
   // ── Google Auth Request ──
   // iOS'ta reversed client ID scheme kullanıyoruz — ASWebAuthenticationSession bunu yakalıyor
@@ -241,18 +241,13 @@ export default function LoginScreen() {
     }
   };
 
-  const handleSocial = async (provider: 'google' | 'apple') => {
+  const handleSocial = async (provider: 'google') => {
     if (provider === 'google') {
       if (!request) {
         Alert.alert('Hata', 'Google servisi şu an hazır değil kanka.');
         return;
       }
       promptAsync();
-    } else {
-      // Apple logic placeholder
-      setSocialLoading(provider);
-      await signIn(provider);
-      setSocialLoading(null);
     }
   };
 
@@ -417,26 +412,7 @@ export default function LoginScreen() {
                 }
               </TouchableOpacity>
 
-              {/* Apple */}
-              <TouchableOpacity
-                style={s.socialBtn}
-                onPress={() => handleSocial('apple')}
-                activeOpacity={0.78}
-                disabled={!!socialLoading}
-              >
-                <LinearGradient
-                  colors={['rgba(255,255,255,0.07)', 'rgba(255,255,255,0.03)']}
-                  style={StyleSheet.absoluteFillObject}
-                  start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
-                />
-                {socialLoading === 'apple'
-                  ? <ActivityIndicator color="rgba(255,255,255,0.7)" size="small" />
-                  : <>
-                      <Ionicons name="logo-apple" size={19} color="rgba(255,255,255,0.90)" />
-                      <Text style={s.socialLabel}>Apple ile devam et</Text>
-                    </>
-                }
-              </TouchableOpacity>
+
 
             </View>
 

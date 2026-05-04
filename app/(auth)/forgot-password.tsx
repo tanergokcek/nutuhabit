@@ -20,6 +20,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/colors';
 import { LAYOUT } from '@/constants/layout';
 import { FONTS } from '@/constants/fonts';
+import { Alert } from 'react-native';
+import { auth } from '@/src/firebaseConfig';
+import { sendPasswordResetEmail } from 'firebase/auth';
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
@@ -31,13 +34,18 @@ export default function ForgotPasswordScreen() {
   const successScale = useRef(new Animated.Value(0.85)).current;
   const successOpacity = useRef(new Animated.Value(0)).current;
 
-  const handleSend = () => {
-    if (!email) return;
+  const handleSend = async () => {
+    if (!email) {
+      Alert.alert('Hata', 'Lütfen e-posta adresini gir kanka.');
+      return;
+    }
+    
     setLoading(true);
-    // TODO: connect auth
-    setTimeout(() => {
+    try {
+      await sendPasswordResetEmail(auth, email.trim());
       setLoading(false);
       setSent(true);
+      
       Animated.parallel([
         Animated.spring(successScale, {
           toValue: 1,
@@ -51,7 +59,19 @@ export default function ForgotPasswordScreen() {
           useNativeDriver: true,
         }),
       ]).start();
-    }, 1400);
+    } catch (error: any) {
+      console.error("Şifre sıfırlama hatası:", error);
+      let errorMsg = 'E-posta gönderilemedi kanka.';
+      
+      if (error.code === 'auth/user-not-found') {
+        errorMsg = 'Bu e-posta adresiyle kayıtlı bir kullanıcı bulunamadı.';
+      } else if (error.code === 'auth/invalid-email') {
+        errorMsg = 'Geçersiz bir e-posta adresi girdin.';
+      }
+      
+      Alert.alert('Hata', errorMsg);
+      setLoading(false);
+    }
   };
 
   return (

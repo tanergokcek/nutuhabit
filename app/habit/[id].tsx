@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   StatusBar,
   Alert,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -27,6 +29,10 @@ import { COLORS } from '@/constants/colors';
 import { HabitIcon } from '@/components/ui/HabitIcon';
 import { LAYOUT } from '@/constants/layout';
 import { FONTS } from '@/constants/fonts';
+import { deleteHabitService, upsertLog } from '@/src/services/habits';
+import { cancelHabitReminder } from '@/src/services/notifications';
+import { useAuthStore } from '@/src/store/useAuthStore';
+import { formatMinutes } from '@/src/utils/formatTime';
 
 function GlassStatCard({ value, label }: { value: string; label: string }) {
   return (
@@ -74,6 +80,110 @@ export default function HabitDetailScreen() {
   const habit = habits.find((h) => h.id === id) || (id === SLEEP_HABIT_ID ? SLEEP_HABIT : undefined);
   const todayLog = getTodayLog(id ?? '');
   const streak = useStreak(id ?? '');
+  const { user, isGuest } = useAuthStore();
+
+  const [editingEntry, setEditingEntry] = React.useState<LogEntry | null>(null);
+  const [editValue, setEditValue] = React.useState('');
+
+  const handleDeleteEntry = (entryId: string) => {
+    if (!todayLog || !todayLog.entries) return;
+    const entry = todayLog.entries.find(e => e.id === entryId);
+    if (!entry) return;
+
+    Alert.alert(
+      i18n.deleteEntryTitle,
+      i18n.deleteHabitConfirm(formatMinutes(entry.minutes)),
+      [
+        { text: i18n.cancel, style: 'cancel' },
+        { 
+          text: i18n.deleteLabel, 
+          style: 'destructive',
+          onPress: async () => {
+            const newEntries = todayLog.entries!.filter(e => e.id !== entryId);
+            let updatedLog: Partial<HabitLog> = { entries: newEntries };
+            
+            if (habit?.type === 'time') {
+              updatedLog.elapsedMinutes = newEntries.reduce((sum, e) => sum + e.minutes, 0);
+            } else if (habit?.type === 'bad') {
+              const badH = habit as BadHabit;
+              const newTotal = newEntries.reduce((sum, e) => sum + e.minutes, 0);
+              updatedLog.usedMinutes = newTotal;
+              updatedLog.status = newTotal <= (badH.limitMinutes || 60) ? 'done' : 'failed';
+            }
+
+            updateLog(habit!.id, todayLog.date, updatedLog);
+            if (!isGuest && user?.id) {
+              await upsertLog(user.id, { ...todayLog, ...updatedLog }, habit!.type);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleEditEntry = (entry: LogEntry) => {
+    setEditingEntry(entry);
+    setEditValue(String(entry.minutes));
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingEntry || !todayLog || !todayLog.entries) return;
+    const newMins = parseInt(editValue, 10);
+    if (isNaN(newMins) || newMins < 0) return;
+
+    const newEntries = todayLog.entries.map(e => 
+      e.id === editingEntry.id ? { ...e, minutes: newMins } : e
+    );
+
+    let updatedLog: Partial<HabitLog> = { entries: newEntries };
+    if (habit?.type === 'time') {
+      updatedLog.elapsedMinutes = newEntries.reduce((sum, e) => sum + e.minutes, 0);
+    } else if (habit?.type === 'bad') {
+      const badH = habit as BadHabit;
+      const newTotal = newEntries.reduce((sum, e) => sum + e.minutes, 0);
+      updatedLog.usedMinutes = newTotal;
+      updatedLog.status = newTotal <= (badH.limitMinutes || 60) ? 'done' : 'failed';
+    }
+
+    updateLog(habit!.id, todayLog.date, updatedLog);
+    if (!isGuest && user?.id) {
+      await upsertLog(user.id, { ...todayLog, ...updatedLog }, habit!.type);
+    }
+    setEditingEntry(null);
+  };
+
+  const renderEntriesList = (log: HabitLog | undefined) => {
+    if (!log || !log.entries || !Array.isArray(log.entries) || log.entries.length === 0) return null;
+    return (
+      <View style={{ marginTop: 24, gap: 12, paddingHorizontal: 4 }}>
+        <Text style={styles.sectionLabel}>{i18n.dailyRecords}</Text>
+        {log.entries.slice().sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((entry) => (
+          <BlurView key={entry.id} intensity={20} tint="dark" style={entryStyles.card}>
+            <View style={entryStyles.row}>
+              <View style={entryStyles.info}>
+                <Text style={entryStyles.timeText}>{formatMinutes(entry.minutes)}</Text>
+                {entry.note && <Text style={entryStyles.noteText} numberOfLines={1}>{entry.note}</Text>}
+              </View>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <TouchableOpacity 
+                  style={[entryStyles.actionBtn, { backgroundColor: 'rgba(168,85,247,0.1)' }]}
+                  onPress={() => handleEditEntry(entry)}
+                >
+                  <Ionicons name="create-outline" size={18} color="#c084fc" />
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[entryStyles.actionBtn, { backgroundColor: 'rgba(239,68,68,0.1)' }]}
+                  onPress={() => handleDeleteEntry(entry.id)}
+                >
+                  <Ionicons name="trash-outline" size={18} color="#f87171" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </BlurView>
+        ))}
+      </View>
+    );
+  };
 
   const today = new Date();
   const habitLogs = logs.filter((l) => l.habitId === id);
@@ -359,6 +469,9 @@ export default function HabitDetailScreen() {
           </View>
         </BlurView>
 
+        {/* Günlük kayıtlar listesi */}
+        {renderEntriesList(todayLog)}
+
         {/* Streak */}
         <BlurView intensity={18} tint="dark" style={styles.glassCard}>
           <View style={styles.cardOverlay} />
@@ -417,14 +530,17 @@ export default function HabitDetailScreen() {
 
       {/* Counter — sadece süre bazlı bad habit için */}
       {(habit as BadHabit).limitType === 'time' && (
-        <BlurView intensity={18} tint="dark" style={styles.glassCard}>
-          <View style={styles.cardOverlay} />
-          <View style={styles.cardSpecular} />
-          <View style={styles.cardPadded}>
-            <Text style={styles.sectionLabel}>{i18n.today.toUpperCase()}</Text>
-            <BadHabitCounter habit={habit as BadHabit} log={todayLog} />
-          </View>
-        </BlurView>
+        <>
+          <BlurView intensity={18} tint="dark" style={styles.glassCard}>
+            <View style={styles.cardOverlay} />
+            <View style={styles.cardSpecular} />
+            <View style={styles.cardPadded}>
+              <Text style={styles.sectionLabel}>{i18n.today.toUpperCase()}</Text>
+              <BadHabitCounter habit={habit as BadHabit} log={todayLog} />
+            </View>
+          </BlurView>
+          {renderEntriesList(todayLog)}
+        </>
       )}
 
       {/* Stats row */}
@@ -512,8 +628,13 @@ export default function HabitDetailScreen() {
                   [
                     { text: i18n.cancel, style: 'cancel' },
                     {
-                      text: i18n.delete, style: 'destructive',
-                      onPress: () => { deleteHabit(habit.id); router.back(); },
+                      text: i18n.deleteLabel, style: 'destructive',
+                      onPress: async () => { 
+                        await cancelHabitReminder(habit.id);
+                        await deleteHabitService(habit.id);
+                        deleteHabit(habit.id); 
+                        router.back(); 
+                      },
                     },
                   ]
                 );
@@ -536,6 +657,37 @@ export default function HabitDetailScreen() {
         {habit.type === 'time' && renderTimeContent()}
         {habit.type === 'bad' && renderBadContent()}
       </SafeAreaView>
+
+      {/* Edit Entry Modal */}
+      <Modal
+        visible={editingEntry !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEditingEntry(null)}
+      >
+        <View style={entryStyles.modalOverlay}>
+          <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFillObject} />
+          <View style={entryStyles.modalContent}>
+            <Text style={entryStyles.modalTitle}>{i18n.edit} ({i18n.minuteUnit})</Text>
+            <TextInput
+              style={entryStyles.modalInput}
+              value={editValue}
+              onChangeText={setEditValue}
+              keyboardType="numeric"
+              autoFocus
+              placeholderTextColor="rgba(255,255,255,0.3)"
+            />
+            <View style={entryStyles.modalBtns}>
+              <TouchableOpacity style={entryStyles.modalCancel} onPress={() => setEditingEntry(null)}>
+                <Text style={entryStyles.modalCancelText}>{i18n.cancel}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={entryStyles.modalSave} onPress={handleSaveEdit}>
+                <Text style={entryStyles.modalSaveText}>{i18n.save}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -678,6 +830,101 @@ const styles = StyleSheet.create({
   backBtnText: {
     color: COLORS.neutral[0],
     fontWeight: FONTS.weight.semibold,
+  },
+});
+
+const entryStyles = StyleSheet.create({
+  card: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    gap: 12,
+  },
+  info: {
+    flex: 1,
+    gap: 2,
+  },
+  timeText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  noteText: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.5)',
+  },
+  actionBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 320,
+    backgroundColor: '#1a1a2e',
+    borderRadius: 24,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    gap: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
+    textAlign: 'center',
+  },
+  modalInput: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 18,
+    color: '#fff',
+    textAlign: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  modalBtns: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalCancel: {
+    flex: 1,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  modalCancelText: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalSave: {
+    flex: 1,
+    backgroundColor: '#7c3aed',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  modalSaveText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

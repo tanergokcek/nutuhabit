@@ -15,6 +15,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useHabitStore } from '@/src/store/useHabitStore';
+import { useAuthStore } from '@/src/store/useAuthStore';
+import { HabitIcon } from '@/components/ui/HabitIcon';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { HabitType, TimeHabit, BadHabit } from '@/src/types/habit';
@@ -39,6 +41,7 @@ export default function EditHabitScreen() {
   const router = useRouter();
   const i18n = useTranslation();
   const { habits, updateHabit, deleteHabit } = useHabitStore();
+  const { user, isGuest } = useAuthStore();
 
   const habit = habits.find((h) => h.id === id);
 
@@ -115,28 +118,40 @@ export default function EditHabitScreen() {
 
     setIsSaving(true);
     try {
-      const updates: Record<string, unknown> = { name: name.trim(), icon };
-      if (type === 'time') updates.goalMinutes = parseInt(goalMinutes, 10);
-      if (type === 'bad') {
+      const updates: any = { 
+        name: name.trim(), 
+        icon,
+        reminderEnabled,
+        reminderTime,
+      };
+      
+      if (type === 'time') {
+        updates.goalMinutes = parseInt(goalMinutes, 10);
+      } else if (type === 'bad') {
         updates.limitType = limitType;
-        if (limitType === 'count') updates.limitCount = parseInt(limitCount, 10);
-        else updates.limitMinutes = parseInt(limitMinutes, 10);
-      }
-      
-      updates.reminderEnabled = reminderEnabled;
-      updates.reminderTime = reminderTime;
-
-      await updateHabitService(habit.id, updates as Partial<typeof habit>);
-      
-      if (reminderEnabled) {
-        await scheduleHabitReminder(habit.id, name.trim(), reminderTime);
-      } else {
-        await cancelHabitReminder(habit.id);
+        if (limitType === 'count') {
+          updates.limitCount = parseInt(limitCount, 10);
+        } else {
+          updates.limitMinutes = parseInt(limitMinutes, 10);
+        }
       }
 
-      updateHabit(habit.id, updates as Parameters<typeof updateHabit>[1]);
+      // Firebase update
+      if (!isGuest && user?.id) {
+        await updateHabitService(habit.id, updates);
+        
+        if (reminderEnabled) {
+          await scheduleHabitReminder(habit.id, name.trim(), reminderTime);
+        } else {
+          await cancelHabitReminder(habit.id);
+        }
+      }
+
+      // Local update
+      updateHabit(habit.id, updates);
       router.back();
-    } catch {
+    } catch (error) {
+      console.error("Save error:", error);
       Alert.alert(i18n.errorTitle, i18n.habitUpdateError);
     } finally {
       setIsSaving(false);
@@ -232,11 +247,16 @@ export default function EditHabitScreen() {
                 style={styles.iconPreview}
                 activeOpacity={0.75}
               >
-                <Text style={styles.iconPreviewEmoji}>{icon}</Text>
-                <Text style={styles.iconPreviewLabel}>{i18n.changeIcon}</Text>
+                <View style={styles.iconPreviewBox}>
+                  <HabitIcon icon={icon} size={24} color="#c084fc" />
+                </View>
+                <View style={styles.iconPreviewContent}>
+                  <Text style={styles.iconPreviewTitle}>{i18n.iconLabel}</Text>
+                  <Text style={styles.iconPreviewSub}>{i18n.changeIcon}</Text>
+                </View>
                 <Ionicons
                   name={showIconPicker ? 'chevron-up' : 'chevron-down'}
-                  size={16}
+                  size={18}
                   color="rgba(255,255,255,0.35)"
                 />
               </TouchableOpacity>
@@ -253,7 +273,11 @@ export default function EditHabitScreen() {
                       style={[styles.iconOption, icon === emoji && styles.iconOptionActive]}
                       activeOpacity={0.75}
                     >
-                      <Text style={styles.iconOptionEmoji}>{emoji}</Text>
+                      <HabitIcon 
+                        icon={emoji} 
+                        size={20} 
+                        color={icon === emoji ? '#fff' : 'rgba(255,255,255,0.6)'} 
+                      />
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -422,16 +446,38 @@ const styles = StyleSheet.create({
   iconPreview: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: LAYOUT.spacing.sm,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
-    borderRadius: LAYOUT.radius.md,
+    gap: 16,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(168,85,247,0.25)',
+    borderRadius: 20,
     padding: 12,
+    paddingRight: 20,
   },
-  iconPreviewEmoji: {
-    fontSize: 28,
+  iconPreviewBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: 'rgba(168,85,247,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(168,85,247,0.3)',
   },
+  iconPreviewContent: {
+    flex: 1,
+    gap: 2,
+  },
+  iconPreviewTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  iconPreviewSub: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.45)',
+  },
+
   iconPreviewLabel: {
     flex: 1,
     fontSize: FONTS.size.sm,
@@ -440,27 +486,33 @@ const styles = StyleSheet.create({
   iconGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: LAYOUT.radius.md,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.10)',
-    padding: LAYOUT.spacing.sm,
-  },
-  iconOption: {
-    width: 46,
-    height: 46,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    gap: 10,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
+    padding: 14,
+    marginTop: 8,
+  },
+  iconOption: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.07)',
   },
   iconOptionActive: {
-    backgroundColor: 'rgba(168,85,247,0.30)',
+    backgroundColor: 'rgba(168,85,247,0.35)',
+    borderColor: '#c084fc',
     borderWidth: 1.5,
-    borderColor: 'rgba(192,132,252,0.55)',
+    shadowColor: '#a855f7',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+    elevation: 4,
   },
   iconOptionEmoji: {
     fontSize: 22,
@@ -564,6 +616,7 @@ const styles = StyleSheet.create({
 function TimePickerModal({ visible, title, time, onConfirm, onClose }: { 
   visible: boolean; title: string; time: string; onConfirm: (t: string) => void; onClose: () => void 
 }) {
+  const i18n = useTranslation();
   const [h, setH] = useState(parseInt(time.split(':')[0], 10));
   const [m, setM] = useState(parseInt(time.split(':')[1], 10));
 

@@ -314,6 +314,8 @@ export interface Translations {
   limitExceededLabel: string;
   reportIntro: string;
   elapsedTimeLabel: string;
+  dailyRecords: string;
+  deleteEntryTitle: string;
 }
 
 export const tr: Translations = {
@@ -653,6 +655,8 @@ export const tr: Translations = {
   limitExceededLabel: 'Limit aşımı',
   reportIntro: 'Verilerini derinlemesine inceledim. İşte senin için hazırladığım gelişim raporu:\n\n',
   elapsedTimeLabel: 'Geçen süre',
+  dailyRecords: 'GÜNLÜK KAYITLAR',
+  deleteEntryTitle: 'Kaydı Sil',
 };
 
 export const en: Translations = {
@@ -992,4 +996,6 @@ export const en: Translations = {
   limitExceededLabel: 'Limit exceeded',
   reportIntro: 'I have analyzed your data in depth. Here is the progress report I prepared for you:\n\n',
   elapsedTimeLabel: 'Elapsed time',
+  dailyRecords: 'DAILY RECORDS',
+  deleteEntryTitle: 'Delete Entry',
 };
