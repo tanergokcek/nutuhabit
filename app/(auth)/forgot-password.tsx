@@ -36,7 +36,7 @@ export default function ForgotPasswordScreen() {
 
   const handleSend = async () => {
     if (!email) {
-      Alert.alert('Hata', 'Lütfen e-posta adresini gir kanka.');
+      Alert.alert('Hata', 'Lütfen e-posta adresinizi giriniz.');
       return;
     }
     
@@ -61,7 +61,7 @@ export default function ForgotPasswordScreen() {
       ]).start();
     } catch (error: any) {
       console.error("Şifre sıfırlama hatası:", error);
-      let errorMsg = 'E-posta gönderilemedi kanka.';
+      let errorMsg = 'E-posta gönderilemedi.';
       
       if (error.code === 'auth/user-not-found') {
         errorMsg = 'Bu e-posta adresiyle kayıtlı bir kullanıcı bulunamadı.';

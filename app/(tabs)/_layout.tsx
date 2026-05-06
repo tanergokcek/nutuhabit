@@ -6,6 +6,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MenuDropdown } from '@/components/MenuDropdown';
 import { useAppTheme } from '@/src/hooks/useAppTheme';
 import { useTranslation } from '@/src/hooks/useTranslation';
+import { useHabitStore } from '@/src/store/useHabitStore';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -37,6 +38,7 @@ function CenterFAB() {
   const router = useRouter();
   const t = useAppTheme();
   const i18n = useTranslation();
+  const { selectedDate } = useHabitStore();
 
   const pulse1 = useRef(new Animated.Value(0)).current;
   const pulse2 = useRef(new Animated.Value(0)).current;
@@ -76,7 +78,10 @@ function CenterFAB() {
   return (
     <TouchableOpacity
       style={styles.fabWrapper}
-      onPress={() => router.push('/logHabit')}
+      onPress={() => router.push({
+        pathname: '/logHabit',
+        params: { date: selectedDate }
+      })}
       activeOpacity={0.85}
     >
       {/* Pulse rings */}

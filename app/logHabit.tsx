@@ -410,7 +410,7 @@ export default function LogHabitScreen() {
     { key: 'done', label: i18n.statusDid, style: 'filled' },
   ];
   
-  const { habits, updateLog, lastUsedHabitId, setLastUsedHabitId, logs } = useHabitStore();
+  const { habits, updateLog, lastUsedHabitId, setLastUsedHabitId, logs, selectedDate, setSelectedDate } = useHabitStore();
   const { user, isGuest } = useAuthStore();
 
   const [selectedType, setSelectedType] = useState<HabitType>(params.type || 'done');
@@ -419,8 +419,14 @@ export default function LogHabitScreen() {
   const [status, setStatus] = useState<LogStatus | null>('done');
   const [notes, setNotes] = useState('');
   const [openPanel, setOpenPanel] = useState<'notes' | null>('notes');
-  const [selectedDate, setSelectedDate] = useState<string>(params.date || getTodayString());
   const [savedResult, setSavedResult] = useState<SavedResult | null>(null);
+
+  // Parametrelerden gelen tarihi store'a aktar
+  useEffect(() => {
+    if (params.date && params.date !== selectedDate) {
+      setSelectedDate(params.date);
+    }
+  }, [params.date]);
 
   // TIME — mod ve saat state
   const [timeMode, setTimeMode] = useState<'range' | 'duration'>('range');
@@ -558,38 +564,42 @@ export default function LogHabitScreen() {
     } else if (selectedType === 'bad') {
       const badHabit = habit as BadHabit;
       const didIt = status === 'failed';
+      const prevLog = logs.find(l => l.habitId === habit.id && l.date === selectedDate);
+      const prevEntries = prevLog?.entries ?? [];
+      const newEntries = didIt ? [...prevEntries, newEntry] : prevEntries;
       
       if (badHabit.limitType === 'time') {
-        const prevLog = logs.find(l => l.habitId === habit.id && l.date === selectedDate);
         const prevMinutes = prevLog?.usedMinutes ?? 0;
-        const prevEntries = prevLog?.entries ?? [];
         const newMinutes = prevMinutes + elapsedMinutes;
-        const newEntries = [...prevEntries, newEntry];
+        const updatedEntries = [...prevEntries, newEntry]; // Time-based bad habit always adds entry
 
         updateLog(habit.id, selectedDate, { 
           usedMinutes: newMinutes,
           status: newMinutes <= (badHabit.limitMinutes || 60) ? 'done' : 'failed', 
           note: noteValue,
-          entries: newEntries
+          entries: updatedEntries
         });
       } else if (badHabit.limitType === 'count') {
-        const prevLog = logs.find(l => l.habitId === habit.id && l.date === selectedDate);
         const prevCount = prevLog?.usedCount ?? 0;
         const newCount = prevCount + (didIt ? 1 : 0);
         updateLog(habit.id, selectedDate, {
           usedCount: didIt ? newCount : prevCount,
           status: newCount > (badHabit.limitCount || 1) ? 'failed' : 'done',
           note: noteValue,
+          entries: newEntries
         });
       } else {
-        updateLog(habit.id, selectedDate, { status: didIt ? 'failed' : 'done', note: noteValue });
+        updateLog(habit.id, selectedDate, { status: didIt ? 'failed' : 'done', note: noteValue, entries: newEntries });
       }
     } else {
       if (!status) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         return;
       }
-      updateLog(habit.id, selectedDate, { status, note: noteValue });
+      const prevLog = logs.find(l => l.habitId === habit.id && l.date === selectedDate);
+      const prevEntries = prevLog?.entries ?? [];
+      const newEntries = [...prevEntries, newEntry];
+      updateLog(habit.id, selectedDate, { status, note: noteValue, entries: newEntries });
     }
 
     // Firestore senkronizasyonu
@@ -600,10 +610,11 @@ export default function LogHabitScreen() {
         note: noteValue,
       };
 
+      const prevLog = logs.find(l => l.habitId === habit.id && l.date === selectedDate);
+      const prevEntries = prevLog?.entries ?? [];
+
       if (selectedType === 'time') {
-        const prevLog = logs.find(l => l.habitId === habit.id && l.date === selectedDate);
         const prevMinutes = prevLog?.elapsedMinutes ?? 0;
-        const prevEntries = prevLog?.entries ?? [];
         const newMinutes = prevMinutes + elapsedMinutes;
         const newEntries = [...prevEntries, newEntry];
 
@@ -614,9 +625,7 @@ export default function LogHabitScreen() {
         const badHabit = habit as BadHabit;
         const didIt = status === 'failed';
         if (badHabit.limitType === 'time') {
-          const prevLog = logs.find(l => l.habitId === habit.id && l.date === selectedDate);
           const prevMinutes = prevLog?.usedMinutes ?? 0;
-          const prevEntries = prevLog?.entries ?? [];
           const newMinutes = prevMinutes + elapsedMinutes;
           const newEntries = [...prevEntries, newEntry];
 
@@ -624,16 +633,21 @@ export default function LogHabitScreen() {
           logData.status = newMinutes <= (badHabit.limitMinutes || 60) ? 'done' : 'failed';
           logData.entries = newEntries;
         } else if (badHabit.limitType === 'count') {
-          const prevLog = logs.find(l => l.habitId === habit.id && l.date === selectedDate);
           const prevCount = prevLog?.usedCount ?? 0;
           const newCount = prevCount + (didIt ? 1 : 0);
+          const newEntries = didIt ? [...prevEntries, newEntry] : prevEntries;
           logData.usedCount = didIt ? newCount : prevCount;
           logData.status = newCount > (badHabit.limitCount || 1) ? 'failed' : 'done';
+          logData.entries = newEntries;
         } else {
+          const newEntries = didIt ? [...prevEntries, newEntry] : prevEntries;
           logData.status = didIt ? 'failed' : 'done';
+          logData.entries = newEntries;
         }
       } else {
+        const newEntries = [...prevEntries, newEntry];
         logData.status = status;
+        logData.entries = newEntries;
       }
 
       upsertLog(user.id, logData, selectedType);

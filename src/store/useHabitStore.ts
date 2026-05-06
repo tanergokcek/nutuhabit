@@ -29,6 +29,7 @@ interface HabitState {
   filter: HabitFilter;
   scrollToHabitId: string | null;
   lastUsedHabitId: string | null;
+  selectedDate: string;
   // Actions
   setHabits: (habits: Habit[]) => void;
   setLogs: (logs: HabitLog[]) => void;
@@ -40,6 +41,7 @@ interface HabitState {
   setFilter: (filter: HabitFilter) => void;
   setScrollToHabitId: (id: string | null) => void;
   setLastUsedHabitId: (id: string | null) => void;
+  setSelectedDate: (date: string) => void;
   getFilteredHabits: () => Habit[];
   getTodayLog: (habitId: string) => HabitLog | undefined;
   getLogsForHabit: (habitId: string) => HabitLog[];
@@ -52,6 +54,7 @@ export const useHabitStore = create<HabitState>((set, get) => ({
   filter: 'all',
   scrollToHabitId: null,
   lastUsedHabitId: null,
+  selectedDate: getTodayString(),
 
   setHabits: (habits) => set({ habits }),
   setLogs: (logs) => set({ logs }),
@@ -82,7 +85,33 @@ export const useHabitStore = create<HabitState>((set, get) => ({
   },
 
   toggleLog: (habitId, date) => {
-    // This is typically handled by updateLog or a dedicated service call
+    const { logs, habits, updateLog } = get();
+    const habit = habits.find(h => h.id === habitId);
+    if (!habit) return;
+
+    const existingLog = logs.find(l => l.habitId === habitId && l.date === date);
+    const currentStatus = existingLog?.status;
+
+    // Cycle: undefined -> done -> failed -> excused -> done
+    let nextStatus: LogStatus = 'done';
+    if (currentStatus === 'done') nextStatus = 'failed';
+    else if (currentStatus === 'failed') nextStatus = 'excused';
+    else if (currentStatus === 'excused') nextStatus = 'done';
+
+    const newEntry: LogEntry = {
+      id: Date.now().toString(),
+      minutes: 0,
+      createdAt: new Date().toISOString(),
+      note: `Status changed to ${nextStatus}`
+    };
+
+    const prevEntries = existingLog?.entries ?? [];
+    const newEntries = [...prevEntries, newEntry];
+
+    updateLog(habitId, date, { 
+      status: nextStatus,
+      entries: newEntries 
+    });
   },
 
   updateLog: (habitId, date, updates) => {
@@ -111,6 +140,7 @@ export const useHabitStore = create<HabitState>((set, get) => ({
   setFilter: (filter) => set({ filter }),
   setScrollToHabitId: (id) => set({ scrollToHabitId: id }),
   setLastUsedHabitId: (id) => set({ lastUsedHabitId: id }),
+  setSelectedDate: (date) => set({ selectedDate: date }),
 
   getFilteredHabits: () => {
     const { habits, filter } = get();

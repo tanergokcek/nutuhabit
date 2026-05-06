@@ -118,6 +118,7 @@ export default function RootLayout() {
         <Stack.Screen name="notes" options={{ headerShown: false }} />
         <Stack.Screen name="todos" options={{ headerShown: false }} />
         <Stack.Screen name="settings" options={{ headerShown: false }} />
+        <Stack.Screen name="dailyRecords" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
       <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />

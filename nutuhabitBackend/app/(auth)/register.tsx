@@ -60,12 +60,12 @@ export default function RegisterScreen() {
 
   const handleRegister = async () => {
     if (!email || !password || !name) {
-      Alert.alert('Hata', 'Lütfen tüm alanları doldur kanka.');
+      Alert.alert('Hata', 'Lütfen tüm alanları doldurunuz.');
       return;
     }
 
     if (password !== passwordConfirm) {
-      Alert.alert('Hata', 'Şifreler eşleşmiyor kanka.');
+      Alert.alert('Hata', 'Şifreler eşleşmemektedir.');
       return;
     }
 
@@ -120,15 +120,15 @@ export default function RegisterScreen() {
       console.log("Kanka kullanıcı hem auth'a hem db'ye eklendi!");
       router.replace('/(tabs)');
     } catch (error: any) {
-      console.error("Hata var kanka: ", error.message);
+      console.error("Hata oluştu: ", error.message);
       let errorMsg = 'Kayıt olurken bir hata oluştu.';
       
       if (error.code === 'auth/email-already-in-use') {
-        errorMsg = 'Bu e-posta adresi zaten kullanımda kanka.';
+        errorMsg = 'Bu e-posta adresi zaten kullanımda.';
       } else if (error.code === 'auth/weak-password') {
-        errorMsg = 'Şifre çok zayıf kanka, daha güçlü bir şey seç.';
+        errorMsg = 'Şifre çok zayıf, lütfen daha güçlü bir şifre seçiniz.';
       } else if (error.code === 'auth/invalid-email') {
-        errorMsg = 'Geçersiz e-posta adresi kanka.';
+        errorMsg = 'Geçersiz e-posta adresi.';
       }
       
       Alert.alert('Kayıt Hatası', errorMsg);

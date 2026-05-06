@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { LAYOUT } from '@/constants/layout';
@@ -16,6 +16,8 @@ interface MonthlyHeatmapProps {
   data: DayData[];
   year: number;
   month: number; // 1-12
+  selectedDate?: string;
+  onSelectDate?: (date: string) => void;
 }
 
 const DAY_LABELS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
@@ -29,7 +31,7 @@ function getRateColor(rate: number, isDark: boolean): string {
   return '#7c3aed';
 }
 
-export function MonthlyHeatmap({ data, year, month }: MonthlyHeatmapProps) {
+export function MonthlyHeatmap({ data, year, month, selectedDate, onSelectDate }: MonthlyHeatmapProps) {
   const t = useAppTheme();
   const i18n = useTranslation();
   const monthDate = new Date(year, month - 1, 1);
@@ -102,12 +104,15 @@ export function MonthlyHeatmap({ data, year, month }: MonthlyHeatmapProps) {
                 const bgColor = rate < 0 ? emptyBg : getRateColor(rate, t.dark);
 
                 return (
-                  <View
+                  <TouchableOpacity
                     key={di}
+                    activeOpacity={0.7}
+                    onPress={() => onSelectDate?.(dateStr)}
                     style={[
                       styles.cell,
                       { backgroundColor: bgColor },
                       isToday && { borderWidth: 1.5, borderColor: todayBorderColor },
+                      dateStr === selectedDate && { borderWidth: 2, borderColor: '#fff' },
                     ]}
                   >
                     <Text
@@ -115,12 +120,13 @@ export function MonthlyHeatmap({ data, year, month }: MonthlyHeatmapProps) {
                         styles.dayNumber,
                         { color: dayNumColor },
                         isToday && { color: todayTextColor, fontWeight: FONTS.weight.bold },
+                        dateStr === selectedDate && { color: '#fff', fontWeight: FONTS.weight.bold },
                         rate >= 0.5 && styles.lightText,
                       ]}
                     >
                       {day}
                     </Text>
-                  </View>
+                  </TouchableOpacity>
                 );
               })}
             </View>

@@ -45,7 +45,8 @@ function getPasswordStrength(pw: string): { score: number; label: string; color:
 export default function RegisterScreen() {
   const router = useRouter();
   const { setUser, setLoading: setStoreLoading } = useAuthStore();
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
@@ -53,19 +54,18 @@ export default function RegisterScreen() {
   const [showPwConfirm, setShowPwConfirm] = useState(false);
   const [focused, setFocused] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [socialLoading, setSocialLoading] = useState<'google' | null>(null);
 
   const strength = getPasswordStrength(password);
   const passwordsMatch = password && passwordConfirm && password === passwordConfirm;
 
   const handleRegister = async () => {
-    if (!email || !password || !name) {
-      Alert.alert('Hata', 'Lütfen tüm alanları doldur kanka.');
+    if (!email || !password || !firstName || !lastName) {
+      Alert.alert('Hata', 'Lütfen tüm alanları doldurunuz.');
       return;
     }
 
     if (password !== passwordConfirm) {
-      Alert.alert('Hata', 'Şifreler eşleşmiyor kanka.');
+      Alert.alert('Hata', 'Şifreler eşleşmemektedir.');
       return;
     }
 
@@ -76,18 +76,15 @@ export default function RegisterScreen() {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Firebase Auth Profilini Güncelle (displayName set edelim)
-      await updateProfile(user, { displayName: name });
+      const fullName = `${firstName} ${lastName}`.trim();
 
-      // İsmi split edelim (Ad Soyad -> firstName, lastName)
-      const nameParts = name.trim().split(' ');
-      const firstName = nameParts[0];
-      const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+      // Firebase Auth Profilini Güncelle (displayName set edelim)
+      await updateProfile(user, { displayName: fullName });
 
       const userData = {
         firstName: firstName,
         lastName: lastName,
-        fullName: name, // Kolaylık olsun diye tam ismi de tutalım
+        fullName: fullName, // Kolaylık olsun diye tam ismi de tutalım
         email: email,
         createdAt: new Date(),
         habitCount: 0,
@@ -108,7 +105,9 @@ export default function RegisterScreen() {
       const mappedUser = {
         id: user.uid,
         email: user.email || '',
-        displayName: name,
+        displayName: fullName,
+        firstName: firstName,
+        lastName: lastName,
         photoURL: user.photoURL || null,
         isPremium: false,
         createdAt: new Date().toISOString(),
@@ -117,18 +116,18 @@ export default function RegisterScreen() {
 
       setUser(mappedUser as any, true);
 
-      console.log("Kanka kullanıcı hem auth'a hem db'ye eklendi!");
+      console.log("Kullanıcı hem auth'a hem db'ye eklendi!");
       router.replace('/(tabs)');
     } catch (error: any) {
-      console.error("Hata var kanka: ", error.message);
+      console.error("Hata oluştu: ", error.message);
       let errorMsg = 'Kayıt olurken bir hata oluştu.';
       
       if (error.code === 'auth/email-already-in-use') {
-        errorMsg = 'Bu e-posta adresi zaten kullanımda kanka.';
+        errorMsg = 'Bu e-posta adresi zaten kullanımda.';
       } else if (error.code === 'auth/weak-password') {
-        errorMsg = 'Şifre çok zayıf kanka, daha güçlü bir şey seç.';
+        errorMsg = 'Şifre çok zayıf, lütfen daha güçlü bir şifre seçiniz.';
       } else if (error.code === 'auth/invalid-email') {
-        errorMsg = 'Geçersiz e-posta adresi kanka.';
+        errorMsg = 'Geçersiz e-posta adresi.';
       }
       
       Alert.alert('Kayıt Hatası', errorMsg);
@@ -138,14 +137,6 @@ export default function RegisterScreen() {
     }
   };
 
-  const handleSocial = (provider: 'google') => {
-    setSocialLoading(provider);
-    // TODO: connect auth
-    setTimeout(() => {
-      setSocialLoading(null);
-      router.replace('/(tabs)');
-    }, 1200);
-  };
 
   return (
     <View style={s.container}>
@@ -207,20 +198,38 @@ export default function RegisterScreen() {
 
                 <Text style={s.cardSub}>Hadi başlayalım ✦</Text>
 
-                {/* Ad Soyad */}
-                <View style={[s.inputRow, focused === 'name' && s.inputFocused]}>
+                {/* Ad */}
+                <View style={[s.inputRow, focused === 'firstName' && s.inputFocused]}>
                   <Ionicons
                     name="person-outline" size={18}
-                    color={focused === 'name' ? '#a855f7' : 'rgba(255,255,255,0.32)'}
+                    color={focused === 'firstName' ? '#a855f7' : 'rgba(255,255,255,0.32)'}
                   />
                   <TextInput
                     style={s.inputField}
-                    placeholder="Ad Soyad"
+                    placeholder="Ad"
                     placeholderTextColor="rgba(255,255,255,0.28)"
-                    value={name}
-                    onChangeText={setName}
+                    value={firstName}
+                    onChangeText={setFirstName}
                     autoCapitalize="words"
-                    onFocus={() => setFocused('name')}
+                    onFocus={() => setFocused('firstName')}
+                    onBlur={() => setFocused(null)}
+                  />
+                </View>
+
+                {/* Soyad */}
+                <View style={[s.inputRow, focused === 'lastName' && s.inputFocused]}>
+                  <Ionicons
+                    name="person-outline" size={18}
+                    color={focused === 'lastName' ? '#a855f7' : 'rgba(255,255,255,0.32)'}
+                  />
+                  <TextInput
+                    style={s.inputField}
+                    placeholder="Soyad"
+                    placeholderTextColor="rgba(255,255,255,0.28)"
+                    value={lastName}
+                    onChangeText={setLastName}
+                    autoCapitalize="words"
+                    onFocus={() => setFocused('lastName')}
                     onBlur={() => setFocused(null)}
                   />
                 </View>
@@ -353,28 +362,6 @@ export default function RegisterScreen() {
                   </LinearGradient>
                 </TouchableOpacity>
 
-                {/* Divider */}
-                <View style={s.divider}>
-                  <View style={s.divLine} />
-                  <Text style={s.divText}>veya</Text>
-                  <View style={s.divLine} />
-                </View>
-
-                {/* Google */}
-                <TouchableOpacity
-                  style={s.socialBtn}
-                  onPress={() => handleSocial('google')}
-                  activeOpacity={0.85}
-                  disabled={!!socialLoading}
-                >
-                  {socialLoading === 'google'
-                    ? <ActivityIndicator color="#1f2937" />
-                    : <>
-                        <Text style={s.googleG}>G</Text>
-                        <Text style={s.socialBtnText}>Google ile kayıt ol</Text>
-                      </>
-                  }
-                </TouchableOpacity>
 
 
               </View>

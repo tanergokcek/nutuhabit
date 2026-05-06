@@ -35,6 +35,7 @@ WebBrowser.maybeCompleteAuthSession();
 // Google OAuth config
 const GOOGLE_WEB_CLIENT_ID = "882584952431-jkiu8o1f78gekcpnrj4ducakjccat3p1.apps.googleusercontent.com";
 const GOOGLE_IOS_CLIENT_ID = "882584952431-jfjiq4nepnfm37caitc49ibp0khn3gtg.apps.googleusercontent.com";
+const GOOGLE_ANDROID_CLIENT_ID = "882584952431-oj6t197smiibp0bgbuej5kgal0jpvf2b.apps.googleusercontent.com";
 // iOS client ID'nin ters çevrilmişi — Google OAuth iOS redirect URI olarak bunu kullanıyor
 const REVERSED_IOS_CLIENT_ID = "com.googleusercontent.apps.882584952431-jfjiq4nepnfm37caitc49ibp0khn3gtg";
 
@@ -85,7 +86,11 @@ export default function LoginScreen() {
 
   const [request, response, promptAsync] = AuthSession.useAuthRequest(
     {
-      clientId: Platform.OS === 'ios' ? GOOGLE_IOS_CLIENT_ID : GOOGLE_WEB_CLIENT_ID,
+      clientId: Platform.select({
+        ios: GOOGLE_IOS_CLIENT_ID,
+        android: GOOGLE_ANDROID_CLIENT_ID,
+        default: GOOGLE_WEB_CLIENT_ID,
+      }),
       redirectUri,
       scopes: ['openid', 'profile', 'email'],
       responseType: AuthSession.ResponseType.Code,
@@ -172,7 +177,7 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Hata', 'E-posta ve şifreni girmen lazım kanka.');
+      Alert.alert('Hata', 'Lütfen e-posta adresinizi ve şifrenizi giriniz.');
       return;
     }
 
@@ -189,7 +194,7 @@ export default function LoginScreen() {
         const userDoc = await getDoc(doc(db, "users", user.uid));
         userData = userDoc.exists() ? userDoc.data() : null;
       } catch (fsError: any) {
-        console.warn("Firestore verisi çekilemedi kanka, muhtemelen çevrimdışısın:", fsError.message);
+        console.warn("Firestore verisi çekilemedi, muhtemelen çevrimdışısınız:", fsError.message);
         // Firestore hatası olsa bile giriş yapmış sayalım, default verilerle devam ederiz
       }
 
@@ -222,14 +227,14 @@ export default function LoginScreen() {
       
       setUser(mappedUser as any, true);
       
-      console.log("Giriş başarılı kanka!");
+      console.log("Giriş başarılı!");
       router.replace('/(tabs)');
     } catch (error: any) {
       console.error("Giriş hatası: ", error.message);
-      let errorMsg = 'Giriş yapılamadı kanka.';
+      let errorMsg = 'Giriş yapılamadı.';
       
       if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-        errorMsg = 'E-posta veya şifre hatalı kanka.';
+        errorMsg = 'E-posta veya şifre hatalı.';
       } else if (error.code === 'auth/invalid-email') {
         errorMsg = 'Geçersiz e-posta adresi.';
       }
@@ -244,7 +249,7 @@ export default function LoginScreen() {
   const handleSocial = async (provider: 'google') => {
     if (provider === 'google') {
       if (!request) {
-        Alert.alert('Hata', 'Google servisi şu an hazır değil kanka.');
+        Alert.alert('Hata', 'Google servisi şu an hazır değil.');
         return;
       }
       promptAsync();

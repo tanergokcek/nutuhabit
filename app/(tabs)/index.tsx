@@ -1294,19 +1294,25 @@ const secStyles = StyleSheet.create({
 function WeekDotRow({ logs, selectedDate }: { logs: { dateStr: string; status?: string }[]; selectedDate: string }) {
   const i18n = useTranslation();
   const weekDays = getWeekDays(i18n.weekDays);
-  const COLORS_DOT = ['#ec4899', '#f97316', '#f59e0b', '#a855f7', '#8b5cf6', '#6366f1'];
+
+  const STATUS_COLORS = {
+    done: '#a855f7',    // Mor (Yaptım)
+    failed: '#ec4899',  // Pembe (Yapmadım)
+    excused: '#f59e0b', // Turuncu/Sarı (Mazeretliyim)
+  };
 
   return (
     <View style={dotRowStyles.row}>
-      {weekDays.map(({ dateStr, label }, i) => {
+      {weekDays.map(({ dateStr }) => {
         const log = logs.find((l) => l.dateStr === dateStr);
-        const filled = log?.status === 'done';
-        const dotColor = COLORS_DOT[i % COLORS_DOT.length];
+        const status = log?.status as keyof typeof STATUS_COLORS | undefined;
+        const dotColor = status ? STATUS_COLORS[status] : null;
+
         return (
           <View key={dateStr} style={dotRowStyles.col}>
             <View style={[
               dotRowStyles.dot,
-              filled ? { backgroundColor: dotColor, borderColor: dotColor } : {},
+              dotColor ? { backgroundColor: dotColor, borderColor: dotColor } : { backgroundColor: 'rgba(255,255,255,0.15)' },
             ]} />
             {dateStr === selectedDate && <View style={dotRowStyles.activeIndicator} />}
           </View>
@@ -1470,7 +1476,8 @@ function BadHabitFeaturedCard({ habit, selectedDate, onPress, t }: { habit: BadH
     const hasViolation = isTime 
       ? (log?.usedMinutes || 0) > habit.limitMinutes 
       : (log?.usedCount ?? (log?.status === 'failed' ? 1 : 0)) > habit.limitCount;
-    return { dateStr: d.dateStr, status: hasViolation ? 'done' : undefined };
+    // İhlal varsa pembe (failed), yoksa ve kayıt varsa mor (done)
+    return { dateStr: d.dateStr, status: hasViolation ? 'failed' : (log ? 'done' : undefined) };
   });
 
   return (
@@ -1667,11 +1674,10 @@ export default function HomeScreen() {
   const router = useRouter();
   const t = useAppTheme();
   const i18n = useTranslation();
-  const { habits, setFilter, setScrollToHabitId, getTodayLog, updateLog, setHabits, setLogs, logs } = useHabitStore();
+  const { habits, setFilter, setScrollToHabitId, getTodayLog, updateLog, setHabits, setLogs, logs, selectedDate, setSelectedDate } = useHabitStore();
   const sleepStreak = useStreak(SLEEP_HABIT_ID);
   const { user, isGuest } = useAuthStore();
 
-  const [selectedDate, setSelectedDate] = useState(getTodayString());
   const [refreshing, setRefreshing] = useState(false);
 
   // Veritabanından verileri çek
@@ -1746,6 +1752,23 @@ export default function HomeScreen() {
   const [bedM, setBedM] = useState(parsedSleepTimes?.bedM ?? 30);
   const [wakeH, setWakeH] = useState(parsedSleepTimes?.wakeH ?? 7);
   const [wakeM, setWakeM] = useState(parsedSleepTimes?.wakeM ?? 0);
+
+  // Seçili tarih değiştiğinde veya yeni log geldiğinde saatleri güncelle
+  useEffect(() => {
+    if (parsedSleepTimes) {
+      setBedH(parsedSleepTimes.bedH);
+      setBedM(parsedSleepTimes.bedM);
+      setWakeH(parsedSleepTimes.wakeH);
+      setWakeM(parsedSleepTimes.wakeM);
+    } else {
+      // O gün için kayıt yoksa varsayılanlara dön
+      setBedH(22);
+      setBedM(30);
+      setWakeH(7);
+      setWakeM(0);
+    }
+  }, [parsedSleepTimes]);
+
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [streakCelebVisible, setStreakCelebVisible] = useState(false);
   const [celebStreakCount, setCelebStreakCount] = useState(1);

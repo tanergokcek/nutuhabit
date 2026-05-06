@@ -316,6 +316,7 @@ export interface Translations {
   elapsedTimeLabel: string;
   dailyRecords: string;
   deleteEntryTitle: string;
+  menuDailyRecords: string;
 }
 
 export const tr: Translations = {
@@ -363,8 +364,8 @@ export const tr: Translations = {
   sleepPickerWake: 'Uyanma Saati',
   remaining: 'kaldı',
   habitsTitle: 'Alışkanlıklar',
-  tabDone: 'Done',
-  tabTime: 'Time',
+  tabDone: 'Yapıldı',
+  tabTime: 'Süre',
   tabBad: 'Kötü Alışkanlık',
   logToStart: 'Başlamak için kaydet',
   weeklyGoalLabel: 'Haftalık Hedef',
@@ -657,6 +658,7 @@ export const tr: Translations = {
   elapsedTimeLabel: 'Geçen süre',
   dailyRecords: 'GÜNLÜK KAYITLAR',
   deleteEntryTitle: 'Kaydı Sil',
+  menuDailyRecords: 'Günlük Kayıtlar',
 };
 
 export const en: Translations = {
@@ -998,4 +1000,5 @@ export const en: Translations = {
   elapsedTimeLabel: 'Elapsed time',
   dailyRecords: 'DAILY RECORDS',
   deleteEntryTitle: 'Delete Entry',
+  menuDailyRecords: 'Daily Records',
 };

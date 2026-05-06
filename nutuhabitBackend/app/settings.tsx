@@ -272,7 +272,7 @@ export default function SettingsScreen() {
             onPress={() => {
               Alert.alert(
                 'Çıkış Yap',
-                'Hesabından çıkış yapmak istediğine emin misin kanka?',
+                'Hesabından çıkış yapmak istediğine emin misin?',
                 [
                   { text: 'Vazgeç', style: 'cancel' },
                   {

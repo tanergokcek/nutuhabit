@@ -57,6 +57,12 @@ const MENU_ITEMS: MenuItem[] = [
     route: '/todos',
   },
   {
+    key: 'dailyRecords', label: 'Günlük Kayıtlar',
+    icon: 'list', iconColor: '#c084fc',
+    gradStart: '#581c87', gradEnd: '#3b0764',
+    route: '/dailyRecords',
+  },
+  {
     key: 'ayarlar', label: 'Ayarlar',
     icon: 'settings', iconColor: 'rgba(255,255,255,0.70)',
     gradStart: '#374151', gradEnd: '#1f2937',
@@ -101,6 +107,7 @@ export function MenuDropdown({ visible, onClose }: MenuDropdownProps) {
             if (item.key === 'reminder') label = i18n.menuReminder;
             if (item.key === 'notlar') label = i18n.menuNotes;
             if (item.key === 'todos') label = i18n.menuTodos;
+            if (item.key === 'dailyRecords') label = i18n.menuDailyRecords;
             if (item.key === 'ayarlar') label = i18n.menuSettings;
             const isLast = index === MENU_ITEMS.length - 1;
             return (

@@ -75,115 +75,61 @@ export default function HabitDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const i18n = useTranslation();
-  const { habits, logs, getTodayLog, toggleLog, deleteHabit } = useHabitStore();
+  const { habits, logs, getTodayLog, toggleLog, deleteHabit, updateLog } = useHabitStore();
 
+  const [selectedDate, setSelectedDate] = React.useState(getTodayString());
   const habit = habits.find((h) => h.id === id) || (id === SLEEP_HABIT_ID ? SLEEP_HABIT : undefined);
+  const selectedLog = logs.find(l => l.habitId === id && l.date === selectedDate);
   const todayLog = getTodayLog(id ?? '');
   const streak = useStreak(id ?? '');
   const { user, isGuest } = useAuthStore();
 
-  const [editingEntry, setEditingEntry] = React.useState<LogEntry | null>(null);
-  const [editValue, setEditValue] = React.useState('');
 
-  const handleDeleteEntry = (entryId: string) => {
-    if (!todayLog || !todayLog.entries) return;
-    const entry = todayLog.entries.find(e => e.id === entryId);
-    if (!entry) return;
-
-    Alert.alert(
-      i18n.deleteEntryTitle,
-      i18n.deleteHabitConfirm(formatMinutes(entry.minutes)),
-      [
-        { text: i18n.cancel, style: 'cancel' },
-        { 
-          text: i18n.deleteLabel, 
-          style: 'destructive',
-          onPress: async () => {
-            const newEntries = todayLog.entries!.filter(e => e.id !== entryId);
-            let updatedLog: Partial<HabitLog> = { entries: newEntries };
-            
-            if (habit?.type === 'time') {
-              updatedLog.elapsedMinutes = newEntries.reduce((sum, e) => sum + e.minutes, 0);
-            } else if (habit?.type === 'bad') {
-              const badH = habit as BadHabit;
-              const newTotal = newEntries.reduce((sum, e) => sum + e.minutes, 0);
-              updatedLog.usedMinutes = newTotal;
-              updatedLog.status = newTotal <= (badH.limitMinutes || 60) ? 'done' : 'failed';
-            }
-
-            updateLog(habit!.id, todayLog.date, updatedLog);
-            if (!isGuest && user?.id) {
-              await upsertLog(user.id, { ...todayLog, ...updatedLog }, habit!.type);
-            }
-          }
-        }
-      ]
-    );
-  };
-
-  const handleEditEntry = (entry: LogEntry) => {
-    setEditingEntry(entry);
-    setEditValue(String(entry.minutes));
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editingEntry || !todayLog || !todayLog.entries) return;
-    const newMins = parseInt(editValue, 10);
-    if (isNaN(newMins) || newMins < 0) return;
-
-    const newEntries = todayLog.entries.map(e => 
-      e.id === editingEntry.id ? { ...e, minutes: newMins } : e
-    );
-
-    let updatedLog: Partial<HabitLog> = { entries: newEntries };
-    if (habit?.type === 'time') {
-      updatedLog.elapsedMinutes = newEntries.reduce((sum, e) => sum + e.minutes, 0);
-    } else if (habit?.type === 'bad') {
+  const handleQuickTimeUpdate = async (amount: number) => {
+    if (!habit) return;
+    const logToUpdate = selectedLog || {
+      id: `local-${Date.now()}`,
+      habitId: habit.id,
+      date: selectedDate,
+      status: 'failed',
+      entries: [],
+      elapsedMinutes: 0,
+      usedMinutes: 0,
+      usedCount: 0,
+    };
+    
+    const currentMins = (habit.type === 'bad' ? (logToUpdate as any).usedMinutes : logToUpdate.elapsedMinutes) ?? 0;
+    const newMins = Math.max(0, currentMins + amount);
+    
+    const newEntry: LogEntry = {
+      id: Date.now().toString(),
+      minutes: amount,
+      createdAt: new Date().toISOString(),
+      note: amount > 0 ? `+${amount} dk` : `${amount} dk`
+    };
+    
+    const prevEntries = logToUpdate.entries ?? [];
+    const newEntries = [...prevEntries, newEntry];
+    
+    let updates: Partial<HabitLog> = { entries: newEntries };
+    
+    if (habit.type === 'time') {
+      updates.elapsedMinutes = newEntries.reduce((sum, e) => sum + e.minutes, 0);
+      updates.status = (updates.elapsedMinutes || 0) >= (habit as TimeHabit).goalMinutes ? 'done' : 'failed';
+    } else if (habit.type === 'bad') {
       const badH = habit as BadHabit;
-      const newTotal = newEntries.reduce((sum, e) => sum + e.minutes, 0);
-      updatedLog.usedMinutes = newTotal;
-      updatedLog.status = newTotal <= (badH.limitMinutes || 60) ? 'done' : 'failed';
+      if (badH.limitType === 'time') {
+        updates.usedMinutes = newEntries.reduce((sum, e) => sum + e.minutes, 0);
+        updates.status = (updates.usedMinutes || 0) <= (badH.limitMinutes || 60) ? 'done' : 'failed';
+      }
     }
-
-    updateLog(habit!.id, todayLog.date, updatedLog);
+    
+    updateLog(habit.id, selectedDate, updates);
     if (!isGuest && user?.id) {
-      await upsertLog(user.id, { ...todayLog, ...updatedLog }, habit!.type);
+      await upsertLog(user.id, { ...logToUpdate, ...updates, habitId: habit.id, date: selectedDate } as HabitLog, habit.type);
     }
-    setEditingEntry(null);
   };
 
-  const renderEntriesList = (log: HabitLog | undefined) => {
-    if (!log || !log.entries || !Array.isArray(log.entries) || log.entries.length === 0) return null;
-    return (
-      <View style={{ marginTop: 24, gap: 12, paddingHorizontal: 4 }}>
-        <Text style={styles.sectionLabel}>{i18n.dailyRecords}</Text>
-        {log.entries.slice().sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((entry) => (
-          <BlurView key={entry.id} intensity={20} tint="dark" style={entryStyles.card}>
-            <View style={entryStyles.row}>
-              <View style={entryStyles.info}>
-                <Text style={entryStyles.timeText}>{formatMinutes(entry.minutes)}</Text>
-                {entry.note && <Text style={entryStyles.noteText} numberOfLines={1}>{entry.note}</Text>}
-              </View>
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                <TouchableOpacity 
-                  style={[entryStyles.actionBtn, { backgroundColor: 'rgba(168,85,247,0.1)' }]}
-                  onPress={() => handleEditEntry(entry)}
-                >
-                  <Ionicons name="create-outline" size={18} color="#c084fc" />
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[entryStyles.actionBtn, { backgroundColor: 'rgba(239,68,68,0.1)' }]}
-                  onPress={() => handleDeleteEntry(entry.id)}
-                >
-                  <Ionicons name="trash-outline" size={18} color="#f87171" />
-                </TouchableOpacity>
-              </View>
-            </View>
-          </BlurView>
-        ))}
-      </View>
-    );
-  };
 
   const today = new Date();
   const habitLogs = logs.filter((l) => l.habitId === id);
@@ -243,15 +189,31 @@ export default function HabitDetailScreen() {
         </View>
       </BlurView>
 
-      {/* Today toggle */}
+      {/* Selected Date Toggle */}
       <BlurView intensity={18} tint="dark" style={styles.glassCard}>
         <View style={styles.cardOverlay} />
         <View style={styles.cardSpecular} />
         <View style={styles.cardPadded}>
-          <Text style={styles.sectionLabel}>{i18n.today.toUpperCase()}</Text>
+          <Text style={styles.sectionLabel}>{selectedDate === getTodayString() ? i18n.today.toUpperCase() : selectedDate}</Text>
           <DoneToggle
-            status={todayLog?.status}
-            onChange={() => toggleLog(habit.id, getTodayString())}
+            status={selectedLog?.status}
+            onChange={async (newStatus) => {
+              const newEntry: LogEntry = {
+                id: Date.now().toString(),
+                minutes: 0,
+                createdAt: new Date().toISOString(),
+                note: `Status: ${newStatus}`
+              };
+              const prevEntries = selectedLog?.entries ?? [];
+              const newEntries = [...prevEntries, newEntry];
+              
+              const updatedLog = { status: newStatus, entries: newEntries };
+              toggleLog(habit.id, selectedDate); // Local state
+              
+              if (!isGuest && user?.id) {
+                await upsertLog(user.id, { ...selectedLog, ...updatedLog, habitId: habit.id, date: selectedDate } as HabitLog, habit.type);
+              }
+            }}
             habitId={habit.id}
           />
         </View>
@@ -272,12 +234,14 @@ export default function HabitDetailScreen() {
         data={heatmapData}
         year={today.getFullYear()}
         month={today.getMonth() + 1}
+        selectedDate={selectedDate}
+        onSelectDate={setSelectedDate}
       />
     </ScrollView>
   );
 
   const renderSleepContent = () => {
-    const sleepMins = todayLog?.elapsedMinutes ?? 0;
+    const sleepMins = selectedLog?.elapsedMinutes ?? 0;
     const sleepH = Math.floor(sleepMins / 60);
     const sleepM = sleepMins % 60;
     const durationStr = sleepMins > 0 
@@ -288,9 +252,9 @@ export default function HabitDetailScreen() {
 
     let bedH: number | null = null, bedM: number | null = null;
     let wakeH: number | null = null, wakeM: number | null = null;
-    if (todayLog?.note) {
+    if (selectedLog?.note) {
       try {
-        const parsed = JSON.parse(todayLog.note);
+        const parsed = JSON.parse(selectedLog.note);
         bedH = parsed.bedH; bedM = parsed.bedM;
         wakeH = parsed.wakeH; wakeM = parsed.wakeM;
       } catch { /* ignore */ }
@@ -310,6 +274,7 @@ export default function HabitDetailScreen() {
           <View style={styles.cardOverlay} />
           <View style={styles.cardSpecular} />
           <View style={[styles.cardPadded, { justifyContent: 'center', flexDirection: 'column', gap: 20 }]}>
+            <Text style={styles.sectionLabel}>{selectedDate === getTodayString() ? i18n.today.toUpperCase() : selectedDate}</Text>
             {/* Progress ring */}
             <View style={{ alignItems: 'center' }}>
               <View style={{ width: 180, height: 180, alignItems: 'center', justifyContent: 'center' }}>
@@ -365,42 +330,22 @@ export default function HabitDetailScreen() {
           </View>
         </BlurView>
 
-        {/* Streak */}
-        <BlurView intensity={18} tint="dark" style={styles.glassCard}>
-          <View style={styles.cardOverlay} />
-          <View style={styles.cardSpecular} />
-          <View style={styles.cardPadded}>
-            <StreakFire count={streak.currentStreak} size="lg" />
-            <View style={{ gap: 2 }}>
-              <Text style={styles.streakTitle}>{streak.currentStreak}{i18n.streakDayLabel}</Text>
-              <Text style={styles.streakSubtitle}>{i18n.longestStreakLabel}: {streak.longestStreak} {i18n.dayUnit}</Text>
-            </View>
-          </View>
-        </BlurView>
-
-        {/* Stats */}
-        <View style={styles.statsRow}>
-          <GlassStatCard value={String(streak.totalDays)} label={i18n.totalDaysLabel} />
-          <GlassStatCard value={String(streak.longestStreak)} label={i18n.longestStreakLabel} />
-          <GlassStatCard
-            value={`${Math.floor(goalMins / 60)}${i18n.hourUnitShort}`}
-            label={i18n.dailyGoalLabel}
-          />
-        </View>
-
         {/* Heatmap */}
         <MonthlyHeatmap
           data={heatmapData}
           year={today.getFullYear()}
           month={today.getMonth() + 1}
+          selectedDate={selectedDate}
+          onSelectDate={setSelectedDate}
         />
+
       </ScrollView>
     );
   };
 
   const renderTimeLogContent = () => {
     const timeHabit = habit as TimeHabit;
-    const elapsedMins = todayLog?.elapsedMinutes ?? 0;
+    const elapsedMins = selectedLog?.elapsedMinutes ?? 0;
     const goalMins = timeHabit.goalMinutes;
     const progress = goalMins > 0 ? Math.min(1, elapsedMins / goalMins) : (elapsedMins > 0 ? 1 : 0);
     const isGoalMet = goalMins > 0 ? elapsedMins >= goalMins : elapsedMins > 0;
@@ -412,26 +357,14 @@ export default function HabitDetailScreen() {
           : `${elapsedMins}${i18n.minUnitShort}`)
       : null;
 
-    // Total logged this week
-    const today2 = new Date();
-    const dow = today2.getDay();
-    const mondayOffset = dow === 0 ? -6 : 1 - dow;
-    const weekDates = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(today2);
-      d.setDate(today2.getDate() + mondayOffset + i);
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    });
-    const weekMins = habitLogs
-      .filter((l) => weekDates.includes(l.date))
-      .reduce((s, l) => s + (l.elapsedMinutes ?? 0), 0);
-
     return (
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Bugünkü kayıt */}
+        {/* Seçili tarih kaydı */}
         <BlurView intensity={18} tint="dark" style={styles.glassCard}>
           <View style={styles.cardOverlay} />
           <View style={styles.cardSpecular} />
           <View style={[styles.cardPadded, { flexDirection: 'column', alignItems: 'center', gap: 20 }]}>
+            <Text style={styles.sectionLabel}>{selectedDate === getTodayString() ? i18n.today.toUpperCase() : selectedDate}</Text>
             {/* Progress ring */}
             <View style={{ alignItems: 'center', marginTop: 8 }}>
               <View style={{ width: 180, height: 180, alignItems: 'center', justifyContent: 'center' }}>
@@ -466,44 +399,45 @@ export default function HabitDetailScreen() {
                 ? i18n.recordedToday.replace('%s', elapsedStr)
                 : i18n.timeDetailHint}
             </Text>
-          </View>
-        </BlurView>
 
-        {/* Günlük kayıtlar listesi */}
-        {renderEntriesList(todayLog)}
-
-        {/* Streak */}
-        <BlurView intensity={18} tint="dark" style={styles.glassCard}>
-          <View style={styles.cardOverlay} />
-          <View style={styles.cardSpecular} />
-          <View style={styles.cardPadded}>
-            <StreakFire count={streak.currentStreak} size="lg" />
-            <View style={{ gap: 2 }}>
-              <Text style={styles.streakTitle}>{streak.currentStreak}{i18n.streakDayLabel}</Text>
-              <Text style={styles.streakSubtitle}>{i18n.longestStreakLabel}: {streak.longestStreak} {i18n.dayUnit}</Text>
+            {/* Quick adjust controls */}
+            <View style={quickAdjustStyles.container}>
+              <TouchableOpacity onPress={() => handleQuickTimeUpdate(-15)} style={quickAdjustStyles.btn}>
+                <Text style={quickAdjustStyles.btnText}>-15</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => handleQuickTimeUpdate(-5)} style={quickAdjustStyles.btn}>
+                <Text style={quickAdjustStyles.btnText}>-5</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => handleQuickTimeUpdate(5)} style={[quickAdjustStyles.btn, quickAdjustStyles.btnPrimary]}>
+                <Text style={quickAdjustStyles.btnTextPrimary}>+5</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => handleQuickTimeUpdate(15)} style={[quickAdjustStyles.btn, quickAdjustStyles.btnPrimary]}>
+                <Text style={quickAdjustStyles.btnTextPrimary}>+15</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => handleQuickTimeUpdate(30)} style={[quickAdjustStyles.btn, quickAdjustStyles.btnPrimary]}>
+                <Text style={quickAdjustStyles.btnTextPrimary}>+30</Text>
+              </TouchableOpacity>
             </View>
+
+            <TouchableOpacity 
+              onPress={() => router.push({ pathname: '/logHabit', params: { habitId: habit.id, date: selectedDate } })}
+              style={quickAdjustStyles.fullBtn}
+            >
+              <Ionicons name="add-circle-outline" size={20} color="#c084fc" />
+              <Text style={quickAdjustStyles.fullBtnText}>{i18n.addNewHabitLink}</Text>
+            </TouchableOpacity>
           </View>
         </BlurView>
 
-        {/* Stats row */}
-        <View style={styles.statsRow}>
-          <GlassStatCard value={String(streak.totalDays)} label={i18n.totalDaysLabel} />
-          <GlassStatCard
-            value={weekMins > 59 ? `${Math.floor(weekMins / 60)}${i18n.hourUnitShort}` : `${weekMins}${i18n.minUnitShort}`}
-            label={i18n.thisWeek}
-          />
-          <GlassStatCard
-            value={goalMins > 0 ? (Math.floor(goalMins / 60) > 0 ? `${Math.floor(goalMins / 60)}${i18n.hourUnitShort}` : `${goalMins}${i18n.minUnitShort}`) : '—'}
-            label={i18n.dailyGoalLabel}
-          />
-        </View>
-
-        {/* Monthly heatmap */}
+        {/* Heatmap */}
         <MonthlyHeatmap
           data={heatmapData}
           year={today.getFullYear()}
           month={today.getMonth() + 1}
+          selectedDate={selectedDate}
+          onSelectDate={setSelectedDate}
         />
+
       </ScrollView>
     );
   };
@@ -528,20 +462,59 @@ export default function HabitDetailScreen() {
         </View>
       </BlurView>
 
-      {/* Counter — sadece süre bazlı bad habit için */}
-      {(habit as BadHabit).limitType === 'time' && (
-        <>
-          <BlurView intensity={18} tint="dark" style={styles.glassCard}>
-            <View style={styles.cardOverlay} />
-            <View style={styles.cardSpecular} />
-            <View style={styles.cardPadded}>
-              <Text style={styles.sectionLabel}>{i18n.today.toUpperCase()}</Text>
-              <BadHabitCounter habit={habit as BadHabit} log={todayLog} />
-            </View>
-          </BlurView>
-          {renderEntriesList(todayLog)}
-        </>
-      )}
+      {/* Seçili Tarih Kaydı */}
+      <BlurView intensity={18} tint="dark" style={styles.glassCard}>
+        <View style={styles.cardOverlay} />
+        <View style={styles.cardSpecular} />
+        <View style={styles.cardPadded}>
+          <Text style={styles.sectionLabel}>{selectedDate === getTodayString() ? i18n.today.toUpperCase() : selectedDate}</Text>
+          <View style={{ gap: 12 }}>
+            {(habit as BadHabit).limitType === 'time' ? (
+              <>
+                <BadHabitCounter habit={habit as BadHabit} log={selectedLog} />
+                <View style={[quickAdjustStyles.container, { marginTop: 20 }]}>
+                  <TouchableOpacity onPress={() => handleQuickTimeUpdate(-15)} style={quickAdjustStyles.btn}>
+                    <Text style={quickAdjustStyles.btnText}>-15</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => handleQuickTimeUpdate(-5)} style={quickAdjustStyles.btn}>
+                    <Text style={quickAdjustStyles.btnText}>-5</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => handleQuickTimeUpdate(5)} style={[quickAdjustStyles.btn, quickAdjustStyles.btnPrimary]}>
+                    <Text style={quickAdjustStyles.btnTextPrimary}>+5</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => handleQuickTimeUpdate(15)} style={[quickAdjustStyles.btn, quickAdjustStyles.btnPrimary]}>
+                    <Text style={quickAdjustStyles.btnTextPrimary}>+15</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : (
+              <DoneToggle
+                status={selectedLog?.status}
+                onChange={async (newStatus) => {
+                  const newEntry: LogEntry = {
+                    id: Date.now().toString(),
+                    minutes: 0,
+                    createdAt: new Date().toISOString(),
+                    note: `Status: ${newStatus}`
+                  };
+                  const prevEntries = selectedLog?.entries ?? [];
+                  const newEntries = [...prevEntries, newEntry];
+                  
+                  const updatedLog = { status: newStatus, entries: newEntries };
+                  toggleLog(habit.id, selectedDate);
+                  
+                  if (!isGuest && user?.id) {
+                    await upsertLog(user.id, { ...selectedLog, ...updatedLog, habitId: habit.id, date: selectedDate } as HabitLog, habit.type);
+                  }
+                }}
+                habitId={habit.id}
+              />
+            )}
+          </View>
+        </View>
+      </BlurView>
+
+
 
       {/* Stats row */}
       <View style={styles.statsRow}>
@@ -558,6 +531,8 @@ export default function HabitDetailScreen() {
         data={heatmapData}
         year={today.getFullYear()}
         month={today.getMonth() + 1}
+        selectedDate={selectedDate}
+        onSelectDate={setSelectedDate}
       />
     </ScrollView>
   );
@@ -658,36 +633,6 @@ export default function HabitDetailScreen() {
         {habit.type === 'bad' && renderBadContent()}
       </SafeAreaView>
 
-      {/* Edit Entry Modal */}
-      <Modal
-        visible={editingEntry !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setEditingEntry(null)}
-      >
-        <View style={entryStyles.modalOverlay}>
-          <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFillObject} />
-          <View style={entryStyles.modalContent}>
-            <Text style={entryStyles.modalTitle}>{i18n.edit} ({i18n.minuteUnit})</Text>
-            <TextInput
-              style={entryStyles.modalInput}
-              value={editValue}
-              onChangeText={setEditValue}
-              keyboardType="numeric"
-              autoFocus
-              placeholderTextColor="rgba(255,255,255,0.3)"
-            />
-            <View style={entryStyles.modalBtns}>
-              <TouchableOpacity style={entryStyles.modalCancel} onPress={() => setEditingEntry(null)}>
-                <Text style={entryStyles.modalCancelText}>{i18n.cancel}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={entryStyles.modalSave} onPress={handleSaveEdit}>
-                <Text style={entryStyles.modalSaveText}>{i18n.save}</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -979,4 +924,54 @@ const sleepDetailStyles = StyleSheet.create({
     fontSize: 13, color: 'rgba(255,255,255,0.35)', textAlign: 'center',
     lineHeight: 20, paddingHorizontal: 8,
   },
+});
+
+const quickAdjustStyles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 12,
+    flexWrap: 'wrap',
+  },
+  btn: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+  btnPrimary: {
+    backgroundColor: 'rgba(124,58,237,0.15)',
+    borderColor: 'rgba(124,58,237,0.35)',
+  },
+  btnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.6)',
+  },
+  btnTextPrimary: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#c084fc',
+  },
+  fullBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    backgroundColor: 'rgba(168,85,247,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(168,85,247,0.25)',
+  },
+  fullBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#c084fc',
+  }
 });

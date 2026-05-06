@@ -2,6 +2,8 @@ export interface User {
   id: string;
   email: string;
   displayName: string;
+  firstName?: string;
+  lastName?: string;
   photoURL: string | null;
   isPremium: boolean;
   createdAt: string; // ISO date string
