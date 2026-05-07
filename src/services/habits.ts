@@ -191,7 +191,25 @@ export async function fetchLogs(
           } else if (colName === 'logs_time') {
             log.elapsedMinutes = data.Duration;
             log.status = 'done';
-            if (data.Entries) log.entries = data.Entries;
+            if (data.Entries) {
+              log.entries = data.Entries;
+            } else if (data.HabitID === 'habit-sleep') {
+              // Eskiden kaydedilen uyku verileri için sanal bir entry oluştur
+              let readableNote = data.Note || data.note;
+              try {
+                const parsed = JSON.parse(readableNote);
+                if (parsed.bedH !== undefined) {
+                  readableNote = `${String(parsed.bedH).padStart(2, '0')}:${String(parsed.bedM).padStart(2, '0')} - ${String(parsed.wakeH).padStart(2, '0')}:${String(parsed.wakeM).padStart(2, '0')}`;
+                }
+              } catch (e) { /* JSON değilse olduğu gibi bırak */ }
+
+              log.entries = [{
+                id: `v-${doc.id}`,
+                minutes: data.Duration || 0,
+                createdAt: log.createdAt,
+                note: readableNote
+              }];
+            }
           } else if (colName === 'logs_bad') {
             log.status = data.Status === 'yaptım' ? 'failed' : 'done';
             if (data.Duration !== undefined) log.usedMinutes = data.Duration;

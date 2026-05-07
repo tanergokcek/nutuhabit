@@ -4,8 +4,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 // Güvenlik için gerçek projelerde .env kullanılması önerilir.
 // ÖNEMLİ: Yeni bir API anahtarı alıp buraya yapıştırmalısın.
 // Mevcut anahtarın "leaked" (sızıntı) olarak işaretlenmiş.
-const GEMINI_API_KEY = "";
-
+const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || "";
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
@@ -136,28 +135,30 @@ export async function getAIAnalysis(context: {
     }).join('\n');
 
     const prompt = isTR
-      ? `Aşağıdaki detaylı alışkanlık verilerimi analiz et. 
-Sadece istatistik verme; hangi günlerde neden aksattığımı (notlara bakarak), hangi saatlerde daha aktif olduğumu ve nasıl gelişebileceğimi yorumla. 
-Çok detaylı ve profesyonel bir rapor hazırla.
+      ? `Aşağıdaki alışkanlık verilerimi bir yaşam koçu gibi analiz et. 
+Yanıtın çok uzun olmasın, öz ve motive edici olsun. 
+Verilerdeki mazeretleri ve başarı oranlarını dikkate alarak bana samimi bir değerlendirme yap. 
+Eğer performansım düşükse beni yargılamadan, ayağa kaldıracak tavsiyeler ver. İyi gidiyorsam da enerjimi yükselt!
 
 Veriler:
 ${dataSummary}
 
-Rapor formatı:
-1. Genel Durum Özeti
-2. Alışkanlık Bazlı Detaylı Analiz (Seanslar ve mazeretler dahil)
-3. Gelişim Önerileri ve Motivasyon`
-      : `Analyze my detailed habit data below. 
-Don't just provide statistics; comment on why I missed some days (by looking at notes), when I'm most active, and how I can improve. 
-Prepare a very detailed and professional report.
+Yanıtını şu şekilde yapılandır:
+- Kısa bir selamlaşma ve genel durum özeti
+- Kritik gördüğün 1-2 nokta için tavsiye
+- Güçlü bir motivasyon cümlesi`
+      : `Analyze my habit data below like a life coach. 
+Keep your response concise, pithy, and motivating. 
+Take into account the excuses and success rates in the data to give me a sincere evaluation. 
+If my performance is low, give me advice to get me back on my feet without judging. If I'm doing well, boost my energy!
 
 Data:
 ${dataSummary}
 
-Report format:
-1. Overall Summary
-2. Detailed Analysis per Habit (Including sessions and excuses)
-3. Improvement Suggestions and Motivation`;
+Structure your response like this:
+- A short greeting and overall summary
+- Advice for 1-2 critical points you see
+- A strong motivational sentence`;
 
     const result = await model.generateContent(prompt);
     const response = await result.response;

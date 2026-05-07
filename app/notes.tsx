@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, StatusBar,
   TouchableOpacity, TextInput, Modal, Pressable,
   ActivityIndicator, RefreshControl, Alert,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -244,33 +245,40 @@ export default function NotesScreen() {
       {/* Add personal note modal */}
       <Modal visible={addVisible} transparent animationType="slide" onRequestClose={() => setAddVisible(false)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setAddVisible(false)}>
-          <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
-            <LinearGradient
-              colors={['rgba(30,50,120,0.97)', 'rgba(15,8,50,0.99)']}
-              style={StyleSheet.absoluteFillObject}
-            />
-            <View style={styles.modalHandle} />
-            <View style={styles.modalTitleRow}>
-              <Ionicons name="person" size={16} color="#93c5fd" />
-              <Text style={styles.modalTitle}>{i18n.personalNoteTitle}</Text>
-            </View>
-            <TextInput
-              style={styles.noteInput}
-              value={newText}
-              onChangeText={setNewText}
-              placeholder={i18n.notePlaceholder}
-              placeholderTextColor="rgba(255,255,255,0.25)"
-              multiline
-              numberOfLines={5}
-              textAlignVertical="top"
-              autoFocus
-            />
-            <TouchableOpacity style={styles.saveBtn} onPress={handleAddNote} activeOpacity={0.85}>
-              <LinearGradient colors={['#3b82f6', '#2563eb']} style={styles.saveBtnGrad}>
-                <Text style={styles.saveBtnText}>{i18n.save}</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </Pressable>
+          <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+            <KeyboardAvoidingView 
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              style={{ width: '100%' }}
+            >
+              <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
+                <LinearGradient
+                  colors={['rgba(30,50,120,0.97)', 'rgba(15,8,50,0.99)']}
+                  style={StyleSheet.absoluteFillObject}
+                />
+                <View style={styles.modalHandle} />
+                <View style={styles.modalTitleRow}>
+                  <Ionicons name="person" size={16} color="#93c5fd" />
+                  <Text style={styles.modalTitle}>{i18n.personalNoteTitle}</Text>
+                </View>
+                <TextInput
+                  style={styles.noteInput}
+                  value={newText}
+                  onChangeText={setNewText}
+                  placeholder={i18n.notePlaceholder}
+                  placeholderTextColor="rgba(255,255,255,0.25)"
+                  multiline
+                  numberOfLines={5}
+                  textAlignVertical="top"
+                  autoFocus
+                />
+                <TouchableOpacity style={styles.saveBtn} onPress={handleAddNote} activeOpacity={0.85}>
+                  <LinearGradient colors={['#3b82f6', '#2563eb']} style={styles.saveBtnGrad}>
+                    <Text style={styles.saveBtnText}>{i18n.save}</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </Pressable>
+            </KeyboardAvoidingView>
+          </View>
         </Pressable>
       </Modal>
     </View>

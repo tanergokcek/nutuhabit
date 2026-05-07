@@ -145,13 +145,23 @@ export default function CalendarPage() {
           {/* Habit list */}
           {activeHabits.map(habit => {
             const log = selectedLogs.find(l => l.habitId === habit.id);
-            const isDone = log?.status === 'done';
-            const isMissed = !log && selectedDate < todayStr;
-            const isFuture = selectedDate > todayStr;
+            const isBad = habit.type === 'bad';
+            
+            let status: 'done' | 'failed' | 'missed' | 'none' = 'none';
+            if (log) {
+              status = log.status === 'done' ? 'done' : 'failed';
+            } else if (selectedDate < todayStr) {
+              status = isBad ? 'done' : 'missed';
+            } else if (selectedDate === todayStr) {
+              if (isBad) status = 'done';
+            }
 
             let badge: { label: string; color: string; bg: string } | null = null;
-            if (isDone) badge = { label: `✓ ${i18n.statusDone}`, color: '#4ade80', bg: 'rgba(34,197,94,0.20)' };
-            else if (isMissed) badge = { label: `✗ ${i18n.statusMissed}`, color: '#f87171', bg: 'rgba(239,68,68,0.20)' };
+            if (status === 'done') {
+              badge = { label: `✓ ${i18n.statusDone}`, color: '#4ade80', bg: 'rgba(34,197,94,0.20)' };
+            } else if (status === 'failed' || status === 'missed') {
+              badge = { label: `✗ ${i18n.statusMissed}`, color: '#f87171', bg: 'rgba(239,68,68,0.20)' };
+            }
 
             const typeLabel = habit.type === 'done'
               ? i18n.dailyMorning

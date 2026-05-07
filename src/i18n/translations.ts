@@ -130,6 +130,8 @@ export interface Translations {
   languageCurrent: string;
   weeklyReport: string;
   weeklyReportSubtitle: string;
+  homeLayout: string;
+  homeLayoutSubtitle: string;
   privacy: string;
   privacySubtitle: string;
   resetData: string;
@@ -441,6 +443,8 @@ export const tr: Translations = {
   languageCurrent: 'Türkçe',
   weeklyReport: 'Haftalık Rapor',
   weeklyReportSubtitle: 'Her Pazar sabahı',
+  homeLayout: 'Ana Sayfa Düzeni',
+  homeLayoutSubtitle: 'Sekmeli görünümü kullan',
   privacy: 'Gizlilik',
   privacySubtitle: 'Veri ve izinler',
   resetData: 'Verileri Sıfırla',
@@ -783,6 +787,8 @@ export const en: Translations = {
   languageCurrent: 'English',
   weeklyReport: 'Weekly Report',
   weeklyReportSubtitle: 'Every Sunday morning',
+  homeLayout: 'Home Layout',
+  homeLayoutSubtitle: 'Use tabbed view',
   privacy: 'Privacy',
   privacySubtitle: 'Data & permissions',
   resetData: 'Reset Data',

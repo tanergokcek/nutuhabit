@@ -20,6 +20,7 @@ import Svg, { Path } from 'react-native-svg';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { textStyles, textColors } from '@/constants/typography';
 import { Alert } from 'react-native';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 
 // Firebase imports
 import { auth, db } from '@/src/firebaseConfig';
@@ -32,10 +33,11 @@ import * as AuthSession from 'expo-auth-session';
 
 WebBrowser.maybeCompleteAuthSession();
 
-// Google OAuth config
+// Google OAuth Client IDs
 const GOOGLE_WEB_CLIENT_ID = "882584952431-jkiu8o1f78gekcpnrj4ducakjccat3p1.apps.googleusercontent.com";
 const GOOGLE_IOS_CLIENT_ID = "882584952431-jfjiq4nepnfm37caitc49ibp0khn3gtg.apps.googleusercontent.com";
 const GOOGLE_ANDROID_CLIENT_ID = "882584952431-oj6t197smiibp0bgbuej5kgal0jpvf2b.apps.googleusercontent.com";
+
 // iOS client ID'nin ters çevrilmişi — Google OAuth iOS redirect URI olarak bunu kullanıyor
 const REVERSED_IOS_CLIENT_ID = "com.googleusercontent.apps.882584952431-jfjiq4nepnfm37caitc49ibp0khn3gtg";
 
@@ -81,16 +83,13 @@ export default function LoginScreen() {
   const [socialLoading, setSocialLoading] = useState<'google' | null>(null);
 
   // ── Google Auth Request ──
-  // iOS'ta reversed client ID scheme kullanıyoruz — ASWebAuthenticationSession bunu yakalıyor
-  const redirectUri = `${REVERSED_IOS_CLIENT_ID}:/oauthredirect`;
+  const redirectUri = Platform.OS === 'ios' 
+    ? `${REVERSED_IOS_CLIENT_ID}:/oauthredirect` 
+    : AuthSession.makeRedirectUri();
 
   const [request, response, promptAsync] = AuthSession.useAuthRequest(
     {
-      clientId: Platform.select({
-        ios: GOOGLE_IOS_CLIENT_ID,
-        android: GOOGLE_ANDROID_CLIENT_ID,
-        default: GOOGLE_WEB_CLIENT_ID,
-      }),
+      clientId: Platform.OS === 'ios' ? GOOGLE_IOS_CLIENT_ID : GOOGLE_WEB_CLIENT_ID,
       redirectUri,
       scopes: ['openid', 'profile', 'email'],
       responseType: AuthSession.ResponseType.Code,
@@ -100,7 +99,7 @@ export default function LoginScreen() {
 
   React.useEffect(() => {
     if (response?.type === 'success' && response.params.code) {
-      // Authorization code'u token ile değiştir
+      console.log('Google code alındı, token exchange başlatılıyor...');
       AuthSession.exchangeCodeAsync(
         {
           clientId: Platform.OS === 'ios' ? GOOGLE_IOS_CLIENT_ID : GOOGLE_WEB_CLIENT_ID,
@@ -117,29 +116,45 @@ export default function LoginScreen() {
             handleGoogleLogin(tokenResponse.idToken);
           } else {
             Alert.alert('Hata', 'Google girişinde id_token alınamadı.');
+            setSocialLoading(null);
           }
         })
         .catch((err) => {
           console.error("Token exchange hatası:", err);
           Alert.alert('Hata', 'Google token exchange başarısız.');
+          setSocialLoading(null);
         });
+    } else if (response?.type === 'error' || response?.type === 'cancel') {
+      setSocialLoading(null);
     }
   }, [response]);
 
+  const handleGoogleSignIn = async () => {
+    setSocialLoading('google');
+    await promptAsync();
+  };
+
   const handleGoogleLogin = async (idToken: string) => {
+    console.log('handleGoogleLogin started with idToken length:', idToken?.length);
     setSocialLoading('google');
     setStoreLoading(true);
     try {
       const credential = GoogleAuthProvider.credential(idToken);
+      console.log('Firebase credential created');
       const userCredential = await signInWithCredential(auth, credential);
       const user = userCredential.user;
+      console.log('Firebase signInWithCredential success, UID:', user.uid);
 
       // Firestore'dan çek veya oluştur
       let userData = null;
       try {
+        console.log('Fetching user document from Firestore...');
         const userDoc = await getDoc(doc(db, "users", user.uid));
         userData = userDoc.exists() ? userDoc.data() : null;
-      } catch (e) {}
+        console.log('User data exists:', !!userData);
+      } catch (e) {
+        console.warn('Firestore fetch failed:', e);
+      }
 
       // Token ve Çerez
       const token = await user.getIdToken();
@@ -248,11 +263,7 @@ export default function LoginScreen() {
 
   const handleSocial = async (provider: 'google') => {
     if (provider === 'google') {
-      if (!request) {
-        Alert.alert('Hata', 'Google servisi şu an hazır değil.');
-        return;
-      }
-      promptAsync();
+      await handleGoogleSignIn();
     }
   };
 

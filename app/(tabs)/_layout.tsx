@@ -7,6 +7,7 @@ import { MenuDropdown } from '@/components/MenuDropdown';
 import { useAppTheme } from '@/src/hooks/useAppTheme';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import { useHabitStore } from '@/src/store/useHabitStore';
+import { useThemeStore } from '@/src/store/useThemeStore';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -38,7 +39,8 @@ function CenterFAB() {
   const router = useRouter();
   const t = useAppTheme();
   const i18n = useTranslation();
-  const { selectedDate } = useHabitStore();
+  const { selectedDate, activeHomeTab } = useHabitStore();
+  const { homeLayout } = useThemeStore();
 
   const pulse1 = useRef(new Animated.Value(0)).current;
   const pulse2 = useRef(new Animated.Value(0)).current;
@@ -80,7 +82,10 @@ function CenterFAB() {
       style={styles.fabWrapper}
       onPress={() => router.push({
         pathname: '/logHabit',
-        params: { date: selectedDate }
+        params: { 
+          date: selectedDate,
+          ...(homeLayout === 'tabs' ? { type: activeHomeTab } : {})
+        }
       })}
       activeOpacity={0.85}
     >

@@ -1,4 +1,4 @@
-import { HabitLog, HabitType, StreakInfo } from '@/src/types/habit';
+import { Habit, HabitLog, HabitType, StreakInfo } from '@/src/types/habit';
 import { getTodayString, addDays } from './date';
 
 export function calculateStreak(logs: HabitLog[], habit: Habit): StreakInfo {
@@ -15,49 +15,15 @@ export function calculateStreak(logs: HabitLog[], habit: Habit): StreakInfo {
 
   // Filter to only "completed" logs
   const completedLogs = logs.filter((log) => {
-    if (type === 'done') return log.status === 'done' || log.status === 'excused';
+    if (type === 'done') return log.status === 'done' || log.status === 'excused' || log.status === 'failed';
     if (type === 'time') {
-      const timeHabit = habit as import('@/src/types/habit').TimeHabit;
-      const goal = timeHabit.goalMinutes || 0;
-      const period = timeHabit.goalPeriod || 'daily';
-
-      if (period === 'daily') {
-        return (log.elapsedMinutes || 0) >= goal;
-      }
-
-      // For weekly/yearly, calculate total in that period
-      const logDate = new Date(log.date);
-      let periodMins = 0;
-
-      if (period === 'weekly') {
-        // Find logs in the same ISO week
-        const startOfWeek = new Date(logDate);
-        const day = startOfWeek.getDay();
-        const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1); // Monday
-        startOfWeek.setDate(diff);
-        startOfWeek.setHours(0, 0, 0, 0);
-
-        const endOfWeek = new Date(startOfWeek);
-        endOfWeek.setDate(startOfWeek.getDate() + 6);
-        endOfWeek.setHours(23, 59, 59, 999);
-
-        periodMins = logs
-          .filter(l => {
-            const d = new Date(l.date);
-            return d >= startOfWeek && d <= endOfWeek;
-          })
-          .reduce((sum, l) => sum + (l.elapsedMinutes || 0), 0);
-      } else if (period === 'yearly') {
-        const year = logDate.getFullYear();
-        periodMins = logs
-          .filter(l => new Date(l.date).getFullYear() === year)
-          .reduce((sum, l) => sum + (l.elapsedMinutes || 0), 0);
-      }
-
-      return periodMins >= goal;
+      // Zaman alışkanlıklarında hedefe ulaşılıp ulaşılmadığına bakılmaksızın, 
+      // süre girilmişse (takip edildiyse) streak sayılır.
+      return (log.elapsedMinutes || 0) > 0 || log.status === 'done';
     }
     if (type === 'bad') {
-      return log.status === 'done';
+      // Kötü alışkanlıklarda da kullanıcının takip tutarlılığını ödüllendiriyoruz.
+      return log.status === 'done' || log.status === 'failed' || log.status === 'excused';
     }
     return false;
   });
@@ -67,7 +33,7 @@ export function calculateStreak(logs: HabitLog[], habit: Habit): StreakInfo {
     .map((l) => l.date)
     .sort((a, b) => (a > b ? -1 : 1));
 
-  const uniqueDates = Array.from(new Set(sortedDates));
+  const uniqueDates = Array.from(new Set(sortedDates.map(d => d.trim())));
   const totalDays = uniqueDates.length;
 
   if (totalDays === 0) {

@@ -16,4 +16,5 @@ export interface UserSettings {
   reminderTime: string | null; // 'HH:MM'
   weekStartsOn: 0 | 1; // 0=Sunday, 1=Monday
   language: 'tr' | 'en';
+  homeLayout?: 'stacked' | 'tabs';
 }

@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
-import { useHabitStore } from '@/src/store/useHabitStore';
+import { useHabitStore, SLEEP_HABIT_ID, SLEEP_HABIT } from '@/src/store/useHabitStore';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import { HabitIcon } from '@/components/ui/HabitIcon';
 import { formatMinutes } from '@/src/utils/formatTime';
@@ -38,7 +38,7 @@ export default function DailyRecordsScreen() {
   const allEntries = useMemo(() => {
     const entries: { entry: LogEntry; log: HabitLog; habitName: string; habitIcon: string; habitColor: string; type: string }[] = [];
     logs.forEach(log => {
-      const habit = habits.find(h => h.id === log.habitId);
+      const habit = habits.find(h => h.id === log.habitId) || (log.habitId === SLEEP_HABIT_ID ? SLEEP_HABIT : undefined);
       if (log.entries && Array.isArray(log.entries)) {
         log.entries.forEach(entry => {
           entries.push({
@@ -193,12 +193,12 @@ export default function DailyRecordsScreen() {
                   
                   <View style={styles.entryBody}>
                     <Text style={styles.valueText}>
-                      {type === 'time' || (type === 'bad' && habitName.toLowerCase().includes('uyku')) // simplistic check or use limitType
+                      {type === 'time' || (type === 'bad' && habitName.toLowerCase().includes('uyku'))
                         ? formatMinutes(entry.minutes)
                         : entry.note || i18n.completed
                       }
                     </Text>
-                    {entry.note && (type === 'time' || type === 'bad') && (
+                    {entry.note && (type === 'time' || type === 'bad') && !entry.note.startsWith('{"bedH"') && (
                       <Text style={styles.noteText}>{entry.note}</Text>
                     )}
                   </View>

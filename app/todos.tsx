@@ -11,6 +11,8 @@ import {
   Pressable,
   Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -121,68 +123,73 @@ function EditModal({
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.modalBackdrop} onPress={onClose}>
-        <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
-          {/* Blur efekti için arka plan */}
-          <LinearGradient
-            colors={['rgba(60,20,120,0.92)', 'rgba(15,8,50,0.96)']}
-            style={StyleSheet.absoluteFillObject}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-          />
-          <View style={styles.modalBorder} />
-
-          <View style={styles.handle} />
-
-          <Text style={styles.modalTitle}>{isEdit ? i18n.editTask : i18n.newTask}</Text>
-
-          {/* Metin girişi */}
-          <TextInput
-            style={styles.input}
-            placeholder={i18n.taskPlaceholder}
-            placeholderTextColor="rgba(255,255,255,0.30)"
-            value={text}
-            onChangeText={setText}
-            multiline
-            maxLength={300}
-            autoFocus={!isEdit}
-          />
-
-          {/* Öncelik seçici */}
-          <Text style={styles.priorityLabel}>{i18n.priorityLabel}</Text>
-          <View style={styles.priorityRow}>
-            {(Object.keys(PRIORITY_CONFIG(i18n)) as TodoPriority[]).map((p) => {
-              const cfg = PRIORITY_CONFIG(i18n)[p];
-              const active = priority === p;
-              return (
-                <TouchableOpacity
-                  key={p}
-                  style={[styles.priorityBtn, active && { backgroundColor: cfg.bg, borderColor: cfg.color }]}
-                  onPress={() => setPriority(p)}
-                  activeOpacity={0.75}
-                >
-                  <Text style={[styles.priorityBtnText, { color: active ? cfg.color : 'rgba(255,255,255,0.45)' }]}>
-                    {cfg.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          {/* Kaydet */}
-          <TouchableOpacity
-            style={[styles.saveBtn, !canSave && styles.saveBtnDisabled]}
-            onPress={() => canSave && onSave(text, priority)}
-            activeOpacity={0.85}
-          >
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ width: '100%' }}
+        >
+          <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
+            {/* Blur efekti için arka plan */}
             <LinearGradient
-              colors={canSave ? ['#9333ea', '#7c3aed', '#6d28d9'] : ['#333', '#222']}
-              style={styles.saveBtnGrad}
+              colors={['rgba(60,20,120,0.92)', 'rgba(15,8,50,0.96)']}
+              style={StyleSheet.absoluteFillObject}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+            />
+            <View style={styles.modalBorder} />
+
+            <View style={styles.handle} />
+
+            <Text style={styles.modalTitle}>{isEdit ? i18n.editTask : i18n.newTask}</Text>
+
+            {/* Metin girişi */}
+            <TextInput
+              style={styles.input}
+              placeholder={i18n.taskPlaceholder}
+              placeholderTextColor="rgba(255,255,255,0.30)"
+              value={text}
+              onChangeText={setText}
+              multiline
+              maxLength={300}
+              autoFocus={!isEdit}
+            />
+
+            {/* Öncelik seçici */}
+            <Text style={styles.priorityLabel}>{i18n.priorityLabel}</Text>
+            <View style={styles.priorityRow}>
+              {(Object.keys(PRIORITY_CONFIG(i18n)) as TodoPriority[]).map((p) => {
+                const cfg = PRIORITY_CONFIG(i18n)[p];
+                const active = priority === p;
+                return (
+                  <TouchableOpacity
+                    key={p}
+                    style={[styles.priorityBtn, active && { backgroundColor: cfg.bg, borderColor: cfg.color }]}
+                    onPress={() => setPriority(p)}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={[styles.priorityBtnText, { color: active ? cfg.color : 'rgba(255,255,255,0.45)' }]}>
+                      {cfg.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Kaydet */}
+            <TouchableOpacity
+              style={[styles.saveBtn, !canSave && styles.saveBtnDisabled]}
+              onPress={() => canSave && onSave(text, priority)}
+              activeOpacity={0.85}
             >
-              <Ionicons name={isEdit ? 'checkmark-done' : 'add'} size={18} color="#fff" />
-              <Text style={styles.saveBtnText}>{isEdit ? i18n.updateBtn : i18n.addBtn}</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </Pressable>
+              <LinearGradient
+                colors={canSave ? ['#9333ea', '#7c3aed', '#6d28d9'] : ['#333', '#222']}
+                style={styles.saveBtnGrad}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+              >
+                <Ionicons name={isEdit ? 'checkmark-done' : 'add'} size={18} color="#fff" />
+                <Text style={styles.saveBtnText}>{isEdit ? i18n.updateBtn : i18n.addBtn}</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </Pressable>
+        </KeyboardAvoidingView>
       </Pressable>
     </Modal>
   );

@@ -9,7 +9,8 @@ import { fetchHabits, fetchLogs, upsertLog, createHabitWithId } from '@/src/serv
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { SLEEP_HABIT, SLEEP_HABIT_ID, useHabitStore } from '@/src/store/useHabitStore';
 import { useLanguageStore } from '@/src/store/useLanguageStore';
-import { BadHabit, DoneHabit, TimeHabit } from '@/src/types/habit';
+import { useThemeStore } from '@/src/store/useThemeStore';
+import { BadHabit, DoneHabit, TimeHabit, Habit, HabitLog, HabitType, StreakInfo } from '@/src/types/habit';
 import { getTodayString } from '@/src/utils/date';
 import { formatMinutes } from '@/src/utils/formatTime';
 import { calculateStreak } from '@/src/utils/streak';
@@ -1425,7 +1426,10 @@ function TimeHabitFeaturedCard({ habit, selectedDate, onPress, t }: { habit: Tim
           <WeekDotRow logs={weekLogs} selectedDate={selectedDate} />
         </View>
         <View style={darkCardStyles.rightCol}>
-          <Text style={[darkCardStyles.bigNum, { color: t.t1 }]}>{dayMins}<Text style={[darkCardStyles.unit, { color: t.t2 }]}> {i18n.minUnit}</Text></Text>
+          <Text style={[darkCardStyles.bigNum, { color: t.t1 }]}>
+            {dayMins}
+            <Text style={[darkCardStyles.unit, { color: t.t2, fontSize: 13, fontWeight: '400' }]}> / {habit.goalMinutes} {i18n.minUnit}</Text>
+          </Text>
           <Text style={[darkCardStyles.bigLabel, { color: t.t2 }]}>{i18n.today}</Text>
         </View>
       </View>
@@ -1674,7 +1678,8 @@ export default function HomeScreen() {
   const router = useRouter();
   const t = useAppTheme();
   const i18n = useTranslation();
-  const { habits, setFilter, setScrollToHabitId, getTodayLog, updateLog, setHabits, setLogs, logs, selectedDate, setSelectedDate } = useHabitStore();
+  const { homeLayout } = useThemeStore();
+  const { habits, setFilter, setScrollToHabitId, getTodayLog, updateLog, setHabits, setLogs, logs, selectedDate, setSelectedDate, activeHomeTab, setActiveHomeTab } = useHabitStore();
   const sleepStreak = useStreak(SLEEP_HABIT_ID);
   const { user, isGuest } = useAuthStore();
 
@@ -1686,24 +1691,19 @@ export default function HomeScreen() {
       if (showLoading) setRefreshing(true);
       try {
         const dbHabits = await fetchHabits(user.id);
-        if (dbHabits.length > 0) {
-          // Mevcut uyku alışkanlığını koru ama diğerlerini güncelle
-          const currentHabits = useHabitStore.getState().habits;
-          const sleepHabit = currentHabits.find(h => h.id === SLEEP_HABIT_ID);
-          const otherHabits = dbHabits.filter(h => h.id !== SLEEP_HABIT_ID);
-          setHabits(sleepHabit ? [sleepHabit, ...otherHabits] : dbHabits);
-        }
+        const currentHabits = useHabitStore.getState().habits;
+        const sleepHabit = currentHabits.find(h => h.id === SLEEP_HABIT_ID);
+        const otherHabits = (dbHabits || []).filter(h => h.id !== SLEEP_HABIT_ID);
+        setHabits(sleepHabit ? [sleepHabit, ...otherHabits] : (dbHabits || []));
 
-        // Son 30 günlük logları çek
+        // Son 1 yıllık logları çek (seri takibi için yeterli olması adına)
         const end = getTodayString();
         const start = new Date();
-        start.setDate(start.getDate() - 30);
+        start.setDate(start.getDate() - 365);
         const startStr = start.toISOString().split('T')[0];
 
         const dbLogs = await fetchLogs(user.id, startStr, end);
-        if (dbLogs.length > 0) {
-          setLogs(dbLogs);
-        }
+        setLogs(dbLogs || []);
       } catch (error) {
         console.error('HomeScreen loadData error:', error);
       } finally {
@@ -1781,10 +1781,18 @@ export default function HomeScreen() {
     // Seçili tarihte zaten başarılı log var mı? (kutlamayı tekrar gösterme)
     const wasAlreadyDoneToday = sleepLog?.status === 'done';
 
+    const sleepEntry: LogEntry = {
+      id: `sleep-${Date.now()}`,
+      minutes: totalMins,
+      createdAt: new Date().toISOString(),
+      note: `${String(bedH).padStart(2, '0')}:${String(bedM).padStart(2, '0')} - ${String(wakeH).padStart(2, '0')}:${String(wakeM).padStart(2, '0')}`
+    };
+
     updateLog(SLEEP_HABIT_ID, dateToSave, {
       elapsedMinutes: totalMins,
-      status: totalMins >= 480 ? 'done' : 'failed',
+      status: 'done', // Sleep always counts as done if logged
       note: JSON.stringify({ bedH, bedM, wakeH, wakeM }),
+      entries: [sleepEntry] // Sleep typically has one entry per day
     });
 
     // Firestore senkronizasyonu
@@ -1816,13 +1824,14 @@ export default function HomeScreen() {
         habitId: SLEEP_HABIT_ID,
         date: dateToSave,
         elapsedMinutes: totalMins,
-        status: totalMins >= 480 ? 'done' : 'failed',
+        status: 'done',
         note: JSON.stringify({ bedH, bedM, wakeH, wakeM }),
+        entries: [sleepEntry]
       }, 'time');
     }
 
-    // Sadece bugün ilk kez başarılıysa kutlama göster
-    if (!wasAlreadyDoneToday && totalMins >= 480 && dateToSave === getTodayString()) {
+    // Sadece bugün ilk kez girildiyse kutlama göster
+    if (!wasAlreadyDoneToday && dateToSave === getTodayString()) {
       const updatedLogs = useHabitStore.getState().getLogsForHabit(SLEEP_HABIT_ID);
       const updatedStreak = calculateStreak(updatedLogs, SLEEP_HABIT);
       setCelebStreakCount(updatedStreak.currentStreak);
@@ -1942,8 +1951,29 @@ export default function HomeScreen() {
             t={t}
           />
 
+          {/* ── Tabs (if homeLayout === 'tabs') ── */}
+          {homeLayout === 'tabs' && activeHabits.length > 0 && (
+            <View style={styles.tabContainer}>
+              {doneHabits.length > 0 && (
+                <TouchableOpacity onPress={() => setActiveHomeTab('done')} activeOpacity={0.8} style={[styles.tabBtn, activeHomeTab === 'done' && styles.tabBtnActive]}>
+                  <Text style={[styles.tabText, activeHomeTab === 'done' && styles.tabTextActive]} numberOfLines={1}>{i18n.activeHabitSection}</Text>
+                </TouchableOpacity>
+              )}
+              {timeHabits.length > 0 && (
+                <TouchableOpacity onPress={() => setActiveHomeTab('time')} activeOpacity={0.8} style={[styles.tabBtn, activeHomeTab === 'time' && styles.tabBtnActive]}>
+                  <Text style={[styles.tabText, activeHomeTab === 'time' && styles.tabTextActive]} numberOfLines={1}>{i18n.timeHabitSection}</Text>
+                </TouchableOpacity>
+              )}
+              {badHabits.length > 0 && (
+                <TouchableOpacity onPress={() => setActiveHomeTab('bad')} activeOpacity={0.8} style={[styles.tabBtn, activeHomeTab === 'bad' && styles.tabBtnActive]}>
+                  <Text style={[styles.tabText, activeHomeTab === 'bad' && styles.tabTextActive]} numberOfLines={1}>{i18n.badHabitSection}</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+
           {/* ── Active Habit (Done) ── */}
-          {doneHabits.length > 0 && (
+          {doneHabits.length > 0 && homeLayout === 'stacked' && (
             <View>
               <SectionRow
                 label={i18n.activeHabitSection}
@@ -1958,9 +1988,22 @@ export default function HomeScreen() {
               />
             </View>
           )}
+          {doneHabits.length > 0 && homeLayout === 'tabs' && activeHomeTab === 'done' && (
+            <View style={{ gap: 0 }}>
+              {doneHabits.map((habit) => (
+                <ActiveHabitCard
+                  key={habit.id}
+                  habit={habit}
+                  selectedDate={selectedDate}
+                  onPress={() => navigateToHabit('done', habit.id)}
+                  t={t}
+                />
+              ))}
+            </View>
+          )}
 
           {/* ── Time Habit ── */}
-          {timeHabits.length > 0 && (
+          {timeHabits.length > 0 && homeLayout === 'stacked' && (
             <View>
               <SectionRow
                 label={i18n.timeHabitSection}
@@ -1975,9 +2018,22 @@ export default function HomeScreen() {
               />
             </View>
           )}
+          {timeHabits.length > 0 && homeLayout === 'tabs' && activeHomeTab === 'time' && (
+            <View style={{ gap: 0 }}>
+              {timeHabits.map((habit) => (
+                <TimeHabitFeaturedCard
+                  key={habit.id}
+                  habit={habit}
+                  selectedDate={selectedDate}
+                  onPress={() => navigateToHabit('time', habit.id)}
+                  t={t}
+                />
+              ))}
+            </View>
+          )}
 
           {/* ── Bad Habit ── */}
-          {badHabits.length > 0 && (
+          {badHabits.length > 0 && homeLayout === 'stacked' && (
             <View>
               <SectionRow
                 label={i18n.badHabitSection}
@@ -1990,6 +2046,19 @@ export default function HomeScreen() {
                 onPress={() => navigateToHabit('bad', featuredBad.id)}
                 t={t}
               />
+            </View>
+          )}
+          {badHabits.length > 0 && homeLayout === 'tabs' && activeHomeTab === 'bad' && (
+            <View style={{ gap: 0 }}>
+              {badHabits.map((habit) => (
+                <BadHabitFeaturedCard
+                  key={habit.id}
+                  habit={habit}
+                  selectedDate={selectedDate}
+                  onPress={() => navigateToHabit('bad', habit.id)}
+                  t={t}
+                />
+              ))}
             </View>
           )}
 
@@ -2089,6 +2158,42 @@ function makeStyles(t: ThemeTokens) {
     emptyLogo: { width: 72, height: 72, marginBottom: 14 },
     emptyTitle: { ...textStyles.headline, marginBottom: 6 },                           // 17pt semibold
     emptyText: { ...textStyles.footnote, textAlign: 'center' },                       // 13pt
+
+    tabContainer: {
+      flexDirection: 'row',
+      gap: 10,
+      marginBottom: 18,
+      paddingHorizontal: 2,
+    },
+    tabBtn: {
+      flex: 1,
+      paddingVertical: 14,
+      paddingHorizontal: 6,
+      borderRadius: 18,
+      backgroundColor: 'rgba(255,255,255,0.03)',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.08)',
+    },
+    tabBtnActive: {
+      backgroundColor: 'rgba(109,40,217,0.35)',
+      borderColor: 'rgba(192,132,252,0.35)',
+      shadowColor: '#9333ea',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.35,
+      shadowRadius: 10,
+      elevation: 4,
+    },
+    tabText: {
+      ...textStyles.caption1Medium,
+      color: 'rgba(255,255,255,0.40)',
+      letterSpacing: 1.2,
+      textTransform: 'uppercase',
+    },
+    tabTextActive: {
+      color: '#e9d5ff',
+      fontWeight: '700',
+    },
 
     // AI FAB
     aiFab: {

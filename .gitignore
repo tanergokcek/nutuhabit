@@ -11,3 +11,10 @@ yarn-error.log*
 
 expo-env.d.ts
 # @end expo-cli
+
+# env files
+.env*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local

@@ -30,6 +30,7 @@ interface HabitState {
   scrollToHabitId: string | null;
   lastUsedHabitId: string | null;
   selectedDate: string;
+  activeHomeTab: HabitType;
   // Actions
   setHabits: (habits: Habit[]) => void;
   setLogs: (logs: HabitLog[]) => void;
@@ -42,6 +43,7 @@ interface HabitState {
   setScrollToHabitId: (id: string | null) => void;
   setLastUsedHabitId: (id: string | null) => void;
   setSelectedDate: (date: string) => void;
+  setActiveHomeTab: (tab: HabitType) => void;
   getFilteredHabits: () => Habit[];
   getTodayLog: (habitId: string) => HabitLog | undefined;
   getLogsForHabit: (habitId: string) => HabitLog[];
@@ -55,6 +57,7 @@ export const useHabitStore = create<HabitState>((set, get) => ({
   scrollToHabitId: null,
   lastUsedHabitId: null,
   selectedDate: getTodayString(),
+  activeHomeTab: 'done',
 
   setHabits: (habits) => set({ habits }),
   setLogs: (logs) => set({ logs }),
@@ -141,6 +144,7 @@ export const useHabitStore = create<HabitState>((set, get) => ({
   setScrollToHabitId: (id) => set({ scrollToHabitId: id }),
   setLastUsedHabitId: (id) => set({ lastUsedHabitId: id }),
   setSelectedDate: (date) => set({ selectedDate: date }),
+  setActiveHomeTab: (tab) => set({ activeHomeTab: tab }),
 
   getFilteredHabits: () => {
     const { habits, filter } = get();

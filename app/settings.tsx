@@ -50,7 +50,7 @@ export default function SettingsScreen() {
   const router = useRouter();
   const t = useAppTheme();
   const i18n = useTranslation();
-  const { theme, toggleTheme, resetTheme } = useThemeStore();
+  const { theme, toggleTheme, homeLayout, toggleHomeLayout, resetTheme } = useThemeStore();
   const { language, toggleLanguage, resetLanguage } = useLanguageStore();
   const { user, isGuest, signOut } = useAuthStore();
   const { resetHabits } = useHabitStore();
@@ -65,6 +65,7 @@ export default function SettingsScreen() {
       label: i18n.sectionAppearance,
       rows: [
         { type: 'toggle', id: 'darkMode', emoji: '🌙', iconBg: '#1e1b4b', title: i18n.darkMode, subtitle: i18n.darkModeSubtitle },
+        { type: 'toggle', id: 'homeLayout', emoji: '🗂️', iconBg: '#0f172a', title: i18n.homeLayout, subtitle: i18n.homeLayoutSubtitle },
         { type: 'toggle', id: 'notifs', emoji: '🔔', iconBg: '#78350f', title: i18n.notifications, subtitle: i18n.notificationsSubtitle },
         { type: 'arrow', id: 'lang', emoji: '🌍', iconBg: '#1e3a5f', title: i18n.language, subtitle: i18n.languageCurrent },
       ],
@@ -92,6 +93,8 @@ export default function SettingsScreen() {
   const toggle = (id: string) => {
     if (id === 'darkMode') {
       toggleTheme();
+    } else if (id === 'homeLayout') {
+      toggleHomeLayout();
     } else {
       setToggles(prev => ({ ...prev, [id]: !prev[id] }));
     }
@@ -99,6 +102,7 @@ export default function SettingsScreen() {
 
   const getToggleValue = (id: string): boolean => {
     if (id === 'darkMode') return theme === 'dark';
+    if (id === 'homeLayout') return homeLayout === 'tabs';
     return toggles[id] ?? false;
   };
 

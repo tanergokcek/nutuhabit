@@ -211,6 +211,8 @@ export default function RegisterScreen() {
                     value={firstName}
                     onChangeText={setFirstName}
                     autoCapitalize="words"
+                    textContentType="givenName"
+                    autoComplete="name-given"
                     onFocus={() => setFocused('firstName')}
                     onBlur={() => setFocused(null)}
                   />
@@ -229,6 +231,8 @@ export default function RegisterScreen() {
                     value={lastName}
                     onChangeText={setLastName}
                     autoCapitalize="words"
+                    textContentType="familyName"
+                    autoComplete="name-family"
                     onFocus={() => setFocused('lastName')}
                     onBlur={() => setFocused(null)}
                   />
@@ -249,6 +253,8 @@ export default function RegisterScreen() {
                     keyboardType="email-address"
                     autoCapitalize="none"
                     autoCorrect={false}
+                    textContentType="emailAddress"
+                    autoComplete="email"
                     onFocus={() => setFocused('email')}
                     onBlur={() => setFocused(null)}
                   />
@@ -474,6 +480,7 @@ const s = StyleSheet.create({
     fontSize: FONTS.size.md,
     color: 'rgba(255,255,255,0.90)',
     height: 52,
+    backgroundColor: 'transparent',
   },
   errorText: {
     fontSize: FONTS.size.xs,
