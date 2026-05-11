@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Habit, HabitLog, HabitType, TimeHabit, LogStatus } from '@/src/types/habit';
+import { Habit, HabitLog, HabitType, TimeHabit, LogStatus, LogEntry } from '@/src/types/habit';
 import { getTodayString } from '@/src/utils/date';
 import { useAuthStore } from '@/src/store/useAuthStore';
 
@@ -14,6 +14,7 @@ export const SLEEP_HABIT: TimeHabit = {
   color: '#7C3AED',
   type: 'time',
   goalMinutes: 480, // 8 saat
+  goalPeriod: 'daily',
   createdAt: '2024-01-01T00:00:00.000Z',
   updatedAt: '2024-01-01T00:00:00.000Z',
   isArchived: false,
@@ -77,7 +78,7 @@ export const useHabitStore = create<HabitState>((set, get) => ({
 
   updateHabit: (id, updates) => {
     set((state) => ({
-      habits: state.habits.map((h) => h.id === id ? { ...h, ...updates, updatedAt: new Date().toISOString() } : h)
+      habits: state.habits.map((h) => h.id === id ? { ...h, ...updates, updatedAt: new Date().toISOString() } as Habit : h)
     }));
   },
 
@@ -129,7 +130,6 @@ export const useHabitStore = create<HabitState>((set, get) => ({
           id: `local-${Date.now()}`,
           habitId,
           date,
-          userId: existing?.userId || 'local-user',
           status: updates.status || 'done',
           ...updates,
           createdAt: new Date().toISOString(),

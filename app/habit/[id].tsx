@@ -24,7 +24,7 @@ import { StreakFire } from '@/components/habits/StreakFire';
 import { MonthlyHeatmap } from '@/components/stats/MonthlyHeatmap';
 import { useStreak } from '@/src/hooks/useStreak';
 import { getTodayString } from '@/src/utils/date';
-import { DoneHabit, TimeHabit, BadHabit } from '@/src/types/habit';
+import { DoneHabit, TimeHabit, BadHabit, LogEntry, HabitLog } from '@/src/types/habit';
 import { COLORS } from '@/constants/colors';
 import { HabitIcon } from '@/components/ui/HabitIcon';
 import { LAYOUT } from '@/constants/layout';

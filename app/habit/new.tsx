@@ -1094,10 +1094,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'InriaSerif_700Bold',
   },
-  limitTypeBtnText: {
-    fontSize: 13,
-    fontFamily: 'InriaSerif_700Bold',
-  },
+
   limitTypeBtnTextActive: {
     color: '#c084fc',
     fontFamily: 'InriaSerif_700Bold',

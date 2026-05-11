@@ -172,7 +172,7 @@ function DoneCard({ habit, logs, onPress, onLongPress }: { habit: DoneHabit; log
   const weekLogs = logs.filter((l) => WEEK_DATES.includes(l.date));
   const misses = weekLogs.filter((l) => l.status === 'failed').length;
   const skips = weekLogs.filter((l) => l.status === 'excused').length;
-  const { currentStreak: streak } = useStreak(habit.id, 'done');
+  const { currentStreak: streak } = useStreak(habit.id);
 
   return (
     <HabitCardWrap onPress={onPress} onLongPress={onLongPress}>

@@ -170,7 +170,7 @@ interface HabitCardProps {
 
 function DoneHabitCard({ habit, log, onPress }: { habit: DoneHabit; log: HabitLog | undefined; onPress: () => void }) {
   const toggleLog = useHabitStore((state) => state.toggleLog);
-  const streak = useStreak(habit.id, 'done');
+  const streak = useStreak(habit.id);
 
   return (
     <TouchableOpacity
@@ -212,7 +212,7 @@ function DoneHabitCard({ habit, log, onPress }: { habit: DoneHabit; log: HabitLo
 }
 
 function TimeHabitCard({ habit, log, onPress }: { habit: TimeHabit; log: HabitLog | undefined; onPress: () => void }) {
-  const streak = useStreak(habit.id, 'time');
+  const streak = useStreak(habit.id);
   const progress = Math.min(1, (log?.elapsedMinutes ?? 0) / habit.goalMinutes);
   const pct = Math.round(progress * 100);
   const progressBarWidth = `${pct}%` as `${number}%`;
@@ -256,7 +256,7 @@ function TimeHabitCard({ habit, log, onPress }: { habit: TimeHabit; log: HabitLo
 }
 
 function BadHabitCard({ habit, log, onPress }: { habit: BadHabit; log: HabitLog | undefined; onPress: () => void }) {
-  const streak = useStreak(habit.id, 'bad');
+  const streak = useStreak(habit.id);
   const progress = Math.min(1, (log?.usedMinutes ?? 0) / habit.limitMinutes);
   const pct = Math.round(progress * 100);
   const progressBarWidth = `${pct}%` as `${number}%`;

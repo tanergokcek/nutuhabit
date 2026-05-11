@@ -96,7 +96,7 @@ export async function scheduleHabitReminder(habitId: string, habitName: string, 
         minute: minutes,
         repeats: true,
         channelId: HABIT_CHANNEL_ID,
-      } as Notifications.NotificationTriggerInput,
+      } as any,
     });
   } catch (error) {
     console.error("Error scheduling notification:", error);

@@ -31,7 +31,6 @@ export interface Translations {
   dayUnit: string;
   noStreak: string;
   fireStreak: string;
-  thisWeek: string;
   exceeded: string;
   // Sleep
   sleepSchedule: string;
@@ -261,6 +260,8 @@ export interface Translations {
   yearlyGoalLabel: string;
   dailyGoalLabel: string;
   completed: string;
+  notCompleted: string;
+  excused: string;
   hasData: string;
   recordedToday: string;
   timeDetailHint: string;
@@ -319,6 +320,46 @@ export interface Translations {
   dailyRecords: string;
   deleteEntryTitle: string;
   menuDailyRecords: string;
+  weeklyLabel: string;
+  aiCoachTitle: string;
+  delete: string;
+  priorityLabel: string;
+  addBtn: string;
+  todosTitle: string;
+  dailyTime: string;
+  newHabitTitle: string;
+  habitTypeSelect: string;
+  habitNameLabel: string;
+  habitNamePlaceholder: string;
+  detailLabel: string;
+  frequencyLabel: string;
+  limitLabel: string;
+  reminderLabel: string;
+  reminderOn: string;
+  reminderOff: string;
+  colorLabel: string;
+  iconLabel: string;
+  cancelBtn: string;
+  saveBtn: string;
+  savingBtn: string;
+  typeDone: string;
+  typeTime: string;
+  typeBad: string;
+  freqEveryday: string;
+  freqWeekdays: string;
+  freqWeekends: string;
+  freqCustom: string;
+  periodDayLabel: string;
+  periodWeekLabel: string;
+  periodMonthLabel: string;
+  stepperTimes: string;
+  customDayTitle: string;
+  customDayHint: string;
+  reminderToggleLabel: string;
+  reminderTimePickerTitle: string;
+  reminderTimeSelectLabel: string;
+  loginRequiredMsg: string;
+  dbSaveError: string;
 }
 
 export const tr: Translations = {
@@ -572,7 +613,6 @@ export const tr: Translations = {
   statusDid: 'Yaptım.',
   weekDaysFull: ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'],
   sleepHabitHint: 'İlk alışkanlığınız için uyku vaktinizi girin',
-  thisWeek: 'BU HAFTA',
   totalLabel: 'toplam',
   sleepStreakTitle: 'Uyku Serisi',
   sleepStreakSub: 'Uyku rutinine sadık kalmaya devam et 💪',
@@ -604,7 +644,9 @@ export const tr: Translations = {
   sleepDetailHint: 'Ana sayfadaki uyku kartından saat girerek kaydet',
   yearlyGoalLabel: 'Yıllık Hedef',
   dailyGoalLabel: 'Günlük Hedef',
-  completed: 'Tamamlandı',
+  completed: 'Yaptım',
+  notCompleted: 'Yapmadım',
+  excused: 'Mazeretliyim',
   hasData: 'Kayıt var',
   recordedToday: 'Bugün %s kaydedildi',
   timeDetailHint: 'Ekle butonundan süre kaydet',
@@ -663,6 +705,12 @@ export const tr: Translations = {
   dailyRecords: 'GÜNLÜK KAYITLAR',
   deleteEntryTitle: 'Kaydı Sil',
   menuDailyRecords: 'Günlük Kayıtlar',
+  weeklyLabel: 'bu hafta',
+  aiCoachTitle: 'AI Koç',
+  delete: 'Sil',
+  priorityLabel: 'Öncelik',
+  addBtn: 'Ekle',
+  todosTitle: 'Yapılacaklar',
 };
 
 export const en: Translations = {
@@ -916,7 +964,6 @@ export const en: Translations = {
   statusDid: 'I did.',
   weekDaysFull: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
   sleepHabitHint: 'Enter your sleep time for your first habit',
-  thisWeek: 'THIS WEEK',
   totalLabel: 'total',
   sleepStreakTitle: 'Sleep Streak',
   sleepStreakSub: 'Keep sticking to your sleep routine 💪',
@@ -948,7 +995,9 @@ export const en: Translations = {
   sleepDetailHint: 'Record sleep by entering hours on the home card',
   yearlyGoalLabel: 'Yearly Goal',
   dailyGoalLabel: 'Daily Goal',
-  completed: 'Completed',
+  completed: 'Done',
+  notCompleted: 'Failed',
+  excused: 'Excused',
   hasData: 'Logged',
   recordedToday: 'Today %s recorded',
   timeDetailHint: 'Record time from the add button',
@@ -1007,4 +1056,10 @@ export const en: Translations = {
   dailyRecords: 'DAILY RECORDS',
   deleteEntryTitle: 'Delete Entry',
   menuDailyRecords: 'Daily Records',
+  weeklyLabel: 'this week',
+  aiCoachTitle: 'AI Coach',
+  delete: 'Delete',
+  priorityLabel: 'Priority',
+  addBtn: 'Add',
+  todosTitle: 'Todos',
 };

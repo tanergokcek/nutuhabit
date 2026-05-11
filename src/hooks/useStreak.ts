@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
-import { HabitLog, HabitType, StreakInfo } from '@/src/types/habit';
+import { HabitLog, HabitType, StreakInfo, Habit } from '@/src/types/habit';
 import { calculateStreak } from '@/src/utils/streak';
 import { useHabitStore } from '@/src/store/useHabitStore';
 
-export function useStreak(habitId: string): StreakInfo {
+export function useStreak(habitId: string, referenceDate?: string): StreakInfo {
   const allLogs = useHabitStore((state) => state.logs);
   const habits = useHabitStore((state) => state.habits);
 
@@ -12,12 +12,12 @@ export function useStreak(habitId: string): StreakInfo {
     if (!habit) return { currentStreak: 0, longestStreak: 0, totalDays: 0, lastCompletedDate: null, isActiveToday: false };
     
     const logs = allLogs.filter((l) => l.habitId === habitId);
-    return calculateStreak(logs, habit);
-  }, [allLogs, habitId, habits]);
+    return calculateStreak(logs, habit, referenceDate);
+  }, [allLogs, habitId, habits, referenceDate]);
 }
 
-export function useStreakFromLogs(logs: HabitLog[], habit: Habit): StreakInfo {
+export function useStreakFromLogs(logs: HabitLog[], habit: Habit, referenceDate?: string): StreakInfo {
   return useMemo(() => {
-    return calculateStreak(logs, habit);
-  }, [logs, habit]);
+    return calculateStreak(logs, habit, referenceDate);
+  }, [logs, habit, referenceDate]);
 }

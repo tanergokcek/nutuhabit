@@ -5,7 +5,7 @@ import { upsertLog } from '@/src/services/habits';
 import { addNote } from '@/src/services/notes';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { useHabitStore } from '@/src/store/useHabitStore';
-import { HabitType, LogStatus } from '@/src/types/habit';
+import { HabitType, LogStatus, LogEntry, BadHabit } from '@/src/types/habit';
 import { getTodayString } from '@/src/utils/date';
 import { calculateStreak } from '@/src/utils/streak';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +17,8 @@ import { useTranslation } from '@/src/hooks/useTranslation';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
+  Dimensions,
+  FlatList,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -32,11 +34,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // ─── Haftalık şerit (interaktif) ─────────────────────────────────────────────
-function getWeekDays(i18n: any) {
+function getWeekDays(i18n: any, offsetWeeks: number = 0) {
   const DAY_SHORT = i18n.weekDays;
   const today = new Date();
+  today.setDate(today.getDate() + offsetWeeks * 7);
   const dow = today.getDay();
   const mondayOffset = dow === 0 ? -6 : 1 - dow;
+  const realToday = new Date();
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(today);
     d.setDate(today.getDate() + mondayOffset + i);
@@ -48,7 +52,7 @@ function getWeekDays(i18n: any) {
       label: DAY_SHORT[i],
       dayNum: d.getDate(),
       month: d.toLocaleString(i18n.language === 'tr' ? 'tr-TR' : 'en-US', { month: 'short' }).toUpperCase(),
-      isToday: d.toDateString() === today.toDateString(),
+      isToday: d.toDateString() === realToday.toDateString(),
     };
   });
 }
@@ -58,44 +62,77 @@ interface WeekStripProps {
   onSelectDate: (date: string) => void;
 }
 
+const WEEKS_AROUND = 52; // 1 year past, 1 year future
+const WEEKS_DATA = Array.from({ length: WEEKS_AROUND * 2 + 1 }, (_, i) => i - WEEKS_AROUND);
+
 function WeekStrip({ selectedDate, onSelectDate }: WeekStripProps) {
   const i18n = useTranslation();
-  const days = getWeekDays(i18n);
+  const flatListRef = useRef<FlatList>(null);
+  
+  const contentWidth = Dimensions.get('window').width;
+
+  const renderItem = ({ item: offset }: { item: number }) => {
+    const days = getWeekDays(i18n, offset);
+    return (
+      <View style={{ width: contentWidth, flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: LAYOUT.spacing.md }}>
+        {days.map((day, i) => {
+          const isSelected = day.dateStr === selectedDate;
+          const isToday = day.isToday;
+          return (
+            <TouchableOpacity
+              key={i}
+              style={[
+                weekStyles.pill, 
+                isSelected && weekStyles.pillActive,
+                !isSelected && isToday && { borderColor: 'rgba(192,132,252,0.4)', backgroundColor: 'rgba(192,132,252,0.08)' }
+              ]}
+              onPress={() => onSelectDate(day.dateStr)}
+              activeOpacity={0.75}
+            >
+              {isSelected ? (
+                <LinearGradient colors={['#7c3aed', '#6d28d9']} style={weekStyles.pillGrad}>
+                  <Text style={[weekStyles.dayLabel, weekStyles.dayLabelActive]}>{day.label}</Text>
+                  <Text style={[weekStyles.dayNum, weekStyles.dayNumActive]}>{day.dayNum}</Text>
+                  <Text style={[weekStyles.dayMonth, weekStyles.dayMonthActive]}>{day.month}</Text>
+                </LinearGradient>
+              ) : (
+                <>
+                  <Text style={[weekStyles.dayLabel, isToday && { color: '#c084fc' }]}>{day.label}</Text>
+                  <Text style={[weekStyles.dayNum, isToday && { color: '#e9d5ff', fontWeight: '700' }]}>{day.dayNum}</Text>
+                  <Text style={[weekStyles.dayMonth, isToday && { color: '#c084fc' }]}>{day.month}</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    );
+  };
+
   return (
     <View style={weekStyles.container}>
-      {days.map((day, i) => {
-        const isSelected = day.dateStr === selectedDate;
-        return (
-          <TouchableOpacity
-            key={i}
-            style={[weekStyles.pill, isSelected && weekStyles.pillActive]}
-            onPress={() => onSelectDate(day.dateStr)}
-            activeOpacity={0.75}
-          >
-            {isSelected ? (
-              <LinearGradient colors={['#7c3aed', '#6d28d9']} style={weekStyles.pillGrad}>
-                <Text style={[weekStyles.dayLabel, weekStyles.dayLabelActive]}>{day.label}</Text>
-                <Text style={[weekStyles.dayNum, weekStyles.dayNumActive]}>{day.dayNum}</Text>
-                <Text style={[weekStyles.dayMonth, weekStyles.dayMonthActive]}>{day.month}</Text>
-              </LinearGradient>
-            ) : (
-              <>
-                <Text style={weekStyles.dayLabel}>{day.label}</Text>
-                <Text style={weekStyles.dayNum}>{day.dayNum}</Text>
-                <Text style={weekStyles.dayMonth}>{day.month}</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        );
-      })}
+      <FlatList
+        ref={flatListRef}
+        data={WEEKS_DATA}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        keyExtractor={(item) => item.toString()}
+        renderItem={renderItem}
+        initialScrollIndex={WEEKS_AROUND}
+        getItemLayout={(data, index) => ({
+          length: contentWidth,
+          offset: contentWidth * index,
+          index,
+        })}
+      />
     </View>
   );
 }
 
 const weekStyles = StyleSheet.create({
   container: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    paddingHorizontal: LAYOUT.spacing.md, paddingVertical: 10,
+    paddingVertical: 10,
     backgroundColor: 'rgba(18,12,48,0.85)',
     borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)',
   },

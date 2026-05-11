@@ -10,7 +10,7 @@ import { useAuthStore } from '@/src/store/useAuthStore';
 import { SLEEP_HABIT, SLEEP_HABIT_ID, useHabitStore } from '@/src/store/useHabitStore';
 import { useLanguageStore } from '@/src/store/useLanguageStore';
 import { useThemeStore } from '@/src/store/useThemeStore';
-import { BadHabit, DoneHabit, TimeHabit, Habit, HabitLog, HabitType, StreakInfo } from '@/src/types/habit';
+import { BadHabit, DoneHabit, TimeHabit, Habit, HabitLog, HabitType, StreakInfo, LogEntry } from '@/src/types/habit';
 import { getTodayString } from '@/src/utils/date';
 import { formatMinutes } from '@/src/utils/formatTime';
 import { calculateStreak } from '@/src/utils/streak';
@@ -22,6 +22,8 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
+  Dimensions,
+  FlatList,
   Image,
   Modal,
   Pressable,
@@ -36,11 +38,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // ─── Yardımcılar ──────────────────────────────────────────────────────────────
-function getWeekDays(labels: string[]) {
+function getWeekDays(labels: string[], offsetWeeks: number = 0) {
   const today = new Date();
+  today.setDate(today.getDate() + offsetWeeks * 7);
   // Haftanın başı: Pazartesi
   const dayOfWeek = today.getDay(); // 0=Sun
   const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const realToday = new Date();
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(today);
     d.setDate(today.getDate() + mondayOffset + i);
@@ -51,7 +55,27 @@ function getWeekDays(labels: string[]) {
       dateStr: `${y}-${m}-${day}`,
       label: labels[i],
       dayNum: d.getDate(),
-      isToday: d.toDateString() === today.toDateString(),
+      isToday: d.toDateString() === realToday.toDateString(),
+    };
+  });
+}
+
+function getWeekDaysForDate(labels: string[], dateStr: string) {
+  const targetDate = new Date(dateStr);
+  const dayOfWeek = targetDate.getDay(); // 0=Sun
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const realToday = new Date();
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(targetDate);
+    d.setDate(targetDate.getDate() + mondayOffset + i);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return {
+      dateStr: `${y}-${m}-${day}`,
+      label: labels[i],
+      dayNum: d.getDate(),
+      isToday: d.toDateString() === realToday.toDateString(),
     };
   });
 }
@@ -296,6 +320,12 @@ const scStyles = StyleSheet.create({
   },
   okText: { ...textStyles.subheadSemibold, color: '#fff' },                            // 15pt
 });
+
+interface StreakCelebrationProps {
+  visible: boolean;
+  streakCount: number;
+  onClose: () => void;
+}
 
 // ─── Streak Kutlama Modal'ı ────────────────────────────────────────────────────
 function StreakCelebrationModal({ visible, streakCount, onClose }: StreakCelebrationProps) {
@@ -1293,9 +1323,6 @@ const secStyles = StyleSheet.create({
 });
 
 function WeekDotRow({ logs, selectedDate }: { logs: { dateStr: string; status?: string }[]; selectedDate: string }) {
-  const i18n = useTranslation();
-  const weekDays = getWeekDays(i18n.weekDays);
-
   const STATUS_COLORS = {
     done: '#a855f7',    // Mor (Yaptım)
     failed: '#ec4899',  // Pembe (Yapmadım)
@@ -1304,10 +1331,8 @@ function WeekDotRow({ logs, selectedDate }: { logs: { dateStr: string; status?: 
 
   return (
     <View style={dotRowStyles.row}>
-      {weekDays.map(({ dateStr }) => {
-        const log = logs.find((l) => l.dateStr === dateStr);
-        const status = log?.status as keyof typeof STATUS_COLORS | undefined;
-        const dotColor = status ? STATUS_COLORS[status] : null;
+      {logs.map(({ dateStr, status }) => {
+        const dotColor = status ? STATUS_COLORS[status as keyof typeof STATUS_COLORS] : null;
 
         return (
           <View key={dateStr} style={dotRowStyles.col}>
@@ -1350,9 +1375,9 @@ const dotRowStyles = StyleSheet.create({
 function ActiveHabitCard({ habit, selectedDate, onPress, t }: { habit: DoneHabit; selectedDate: string; onPress: () => void; t: ThemeTokens }) {
   const i18n = useTranslation();
   const allLogs = useHabitStore((state) => state.logs);
-  const streak = useStreak(habit.id);
+  const streak = useStreak(habit.id, selectedDate);
   const logs = useMemo(() => allLogs.filter((l) => l.habitId === habit.id), [allLogs, habit.id]);
-  const weekDays = getWeekDays(i18n.weekDays);
+  const weekDays = getWeekDaysForDate(i18n.weekDays, selectedDate);
   const weekLogs = weekDays.map((d) => ({
     dateStr: d.dateStr,
     status: logs.find((l) => l.date === d.dateStr)?.status,
@@ -1391,9 +1416,9 @@ function ActiveHabitCard({ habit, selectedDate, onPress, t }: { habit: DoneHabit
 function TimeHabitFeaturedCard({ habit, selectedDate, onPress, t }: { habit: TimeHabit; selectedDate: string; onPress: () => void; t: ThemeTokens }) {
   const i18n = useTranslation();
   const allLogs = useHabitStore((state) => state.logs);
-  const streak = useStreak(habit.id);
+  const streak = useStreak(habit.id, selectedDate);
   const logs = useMemo(() => allLogs.filter((l) => l.habitId === habit.id), [allLogs, habit.id]);
-  const weekDays = getWeekDays(i18n.weekDays);
+  const weekDays = getWeekDaysForDate(i18n.weekDays, selectedDate);
 
   const dayMins = useMemo(() => {
     const log = logs.find((l) => l.date === selectedDate);
@@ -1441,7 +1466,7 @@ function BadHabitFeaturedCard({ habit, selectedDate, onPress, t }: { habit: BadH
   const i18n = useTranslation();
   const allLogs = useHabitStore((state) => state.logs);
   const logs = useMemo(() => allLogs.filter((l) => l.habitId === habit.id), [allLogs, habit.id]);
-  const weekDays = getWeekDays(i18n.weekDays);
+  const weekDays = getWeekDaysForDate(i18n.weekDays, selectedDate);
 
   const isTime = habit.limitType === 'time';
   const limitVal = isTime ? (habit.limitMinutes || 0) : (habit.limitCount || 0);
@@ -1555,9 +1580,60 @@ const darkCardStyles = StyleSheet.create({
 });
 
 // ─── Haftalık gün şeridi (cam/liquid efekt) ───────────────────────────────────
+const WEEKS_AROUND = 52;
+const WEEKS_DATA = Array.from({ length: WEEKS_AROUND * 2 + 1 }, (_, i) => i - WEEKS_AROUND);
+
 function WeekStrip({ selectedDate, onSelectDate, t }: { selectedDate: string; onSelectDate: (d: string) => void; t: ThemeTokens }) {
   const i18n = useTranslation();
-  const days = getWeekDays(i18n.weekDays);
+  const flatListRef = useRef<FlatList>(null);
+  
+  // Ekran genişliği - dış marginler (16*2) - border (1*2) - padding (10*2)
+  const contentWidth = Dimensions.get('window').width - LAYOUT.spacing.md * 2 - 22;
+
+  const renderItem = ({ item: offset }: { item: number }) => {
+    const days = getWeekDays(i18n.weekDays, offset);
+    return (
+      <View style={[stripStyles.row, { width: contentWidth }]}>
+        {days.map(({ label, dayNum, dateStr, isToday }, i) => {
+          const isSelected = dateStr === selectedDate;
+          return (
+            <TouchableOpacity key={i} onPress={() => onSelectDate(dateStr)} style={stripStyles.col}>
+              <Text style={[
+                stripStyles.letter, 
+                isSelected ? stripStyles.letterToday : (isToday ? { color: '#c084fc', fontWeight: '700' } : { color: 'rgba(255,255,255,0.38)' })
+              ]}>
+                {label}
+              </Text>
+              <View style={[
+                stripStyles.numWrap, 
+                isSelected ? stripStyles.numWrapToday : stripStyles.numWrapNormal,
+                !isSelected && isToday && { borderColor: 'rgba(192,132,252,0.4)', backgroundColor: 'rgba(192,132,252,0.1)' }
+              ]}>
+                {isSelected && (
+                  <>
+                    <LinearGradient
+                      colors={['#a855f7', '#7c3aed']}
+                      style={StyleSheet.absoluteFillObject}
+                      start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }}
+                    />
+                    {/* İç parlaklık (liquid cam efekti) */}
+                    <View style={stripStyles.liquidSheen} />
+                  </>
+                )}
+                <Text style={[
+                  stripStyles.num, 
+                  isSelected ? stripStyles.numToday : (isToday ? { color: '#e9d5ff', fontWeight: '700' } : { color: 'rgba(255,255,255,0.52)' })
+                ]}>
+                  {dayNum}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    );
+  };
+
   return (
     <View style={stripStyles.touchable}>
       {/* Dış gölge/halo */}
@@ -1574,34 +1650,21 @@ function WeekStrip({ selectedDate, onSelectDate, t }: { selectedDate: string; on
         {/* Üst yansıma çizgisi */}
         <View style={stripStyles.specular} />
 
-        <View style={stripStyles.row}>
-          {days.map(({ label, dayNum, dateStr }, i) => {
-            const isSelected = dateStr === selectedDate;
-            return (
-              <TouchableOpacity key={i} onPress={() => onSelectDate(dateStr)} style={stripStyles.col}>
-                <Text style={[stripStyles.letter, isSelected ? stripStyles.letterToday : { color: 'rgba(255,255,255,0.38)' }]}>
-                  {label}
-                </Text>
-                <View style={[stripStyles.numWrap, isSelected ? stripStyles.numWrapToday : stripStyles.numWrapNormal]}>
-                  {isSelected && (
-                    <>
-                      <LinearGradient
-                        colors={['#a855f7', '#7c3aed']}
-                        style={StyleSheet.absoluteFillObject}
-                        start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }}
-                      />
-                      {/* İç parlaklık (liquid cam efekti) */}
-                      <View style={stripStyles.liquidSheen} />
-                    </>
-                  )}
-                  <Text style={[stripStyles.num, isSelected ? stripStyles.numToday : { color: 'rgba(255,255,255,0.52)' }]}>
-                    {dayNum}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            );
+        <FlatList
+          ref={flatListRef}
+          data={WEEKS_DATA}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          keyExtractor={(item) => item.toString()}
+          renderItem={renderItem}
+          initialScrollIndex={WEEKS_AROUND}
+          getItemLayout={(data, index) => ({
+            length: contentWidth,
+            offset: contentWidth * index,
+            index,
           })}
-        </View>
+        />
       </View>
     </View>
   );
@@ -1680,7 +1743,7 @@ export default function HomeScreen() {
   const i18n = useTranslation();
   const { homeLayout } = useThemeStore();
   const { habits, setFilter, setScrollToHabitId, getTodayLog, updateLog, setHabits, setLogs, logs, selectedDate, setSelectedDate, activeHomeTab, setActiveHomeTab } = useHabitStore();
-  const sleepStreak = useStreak(SLEEP_HABIT_ID);
+  const sleepStreak = useStreak(SLEEP_HABIT_ID, selectedDate);
   const { user, isGuest } = useAuthStore();
 
   const [refreshing, setRefreshing] = useState(false);

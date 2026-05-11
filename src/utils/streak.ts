@@ -1,7 +1,7 @@
 import { Habit, HabitLog, HabitType, StreakInfo } from '@/src/types/habit';
 import { getTodayString, addDays } from './date';
 
-export function calculateStreak(logs: HabitLog[], habit: Habit): StreakInfo {
+export function calculateStreak(logs: HabitLog[], habit: Habit, referenceDate?: string): StreakInfo {
   const { type } = habit;
   if (logs.length === 0) {
     return {
@@ -13,18 +13,11 @@ export function calculateStreak(logs: HabitLog[], habit: Habit): StreakInfo {
     };
   }
 
-  // Filter to only "completed" logs
+  // Sadece başarılı veya mazeretli olan logları seri say
   const completedLogs = logs.filter((log) => {
-    if (type === 'done') return log.status === 'done' || log.status === 'excused' || log.status === 'failed';
-    if (type === 'time') {
-      // Zaman alışkanlıklarında hedefe ulaşılıp ulaşılmadığına bakılmaksızın, 
-      // süre girilmişse (takip edildiyse) streak sayılır.
-      return (log.elapsedMinutes || 0) > 0 || log.status === 'done';
-    }
-    if (type === 'bad') {
-      // Kötü alışkanlıklarda da kullanıcının takip tutarlılığını ödüllendiriyoruz.
-      return log.status === 'done' || log.status === 'failed' || log.status === 'excused';
-    }
+    if (type === 'done') return log.status === 'done' || log.status === 'excused';
+    if (type === 'time') return log.status === 'done' || log.status === 'excused';
+    if (type === 'bad') return log.status === 'done' || log.status === 'excused';
     return false;
   });
 
@@ -47,7 +40,7 @@ export function calculateStreak(logs: HabitLog[], habit: Habit): StreakInfo {
   }
 
   const lastCompletedDate = uniqueDates[0];
-  const today = getTodayString();
+  const today = referenceDate || getTodayString();
   const yesterday = addDays(today, -1);
 
   const isActiveToday = lastCompletedDate === today;

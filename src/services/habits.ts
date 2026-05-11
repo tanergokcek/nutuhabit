@@ -1,6 +1,6 @@
 // Habits service for Firestore implementation
 import { db } from '@/src/firebaseConfig';
-import { Habit, HabitLog } from '@/src/types/habit';
+import { Habit, HabitLog, HabitType, LogStatus } from '@/src/types/habit';
 import { 
   collection, 
   query, 
