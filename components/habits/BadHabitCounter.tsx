@@ -12,6 +12,8 @@ import { FONTS } from '@/constants/fonts';
 interface BadHabitCounterProps {
   habit: BadHabit;
   log: HabitLog | undefined;
+  selectedDate: string;
+  onFutureError?: () => void;
 }
 
 export function BadHabitCounter({ habit, log }: BadHabitCounterProps) {
@@ -40,16 +42,21 @@ export function BadHabitCounter({ habit, log }: BadHabitCounterProps) {
       : COLORS.danger;
 
   const handleUpdate = (amount: number) => {
+    if (selectedDate > getTodayString()) {
+      onFutureError?.();
+      return;
+    }
+
     const newValue = usedValue + amount;
     const finalValue = Math.max(0, newValue);
     
     if (isTimeLimit) {
-      updateLog(habit.id, getTodayString(), {
+      updateLog(habit.id, selectedDate, {
         usedMinutes: finalValue,
         status: finalValue <= limitValue ? 'done' : 'failed',
       });
     } else {
-      updateLog(habit.id, getTodayString(), {
+      updateLog(habit.id, selectedDate, {
         usedCount: finalValue,
         status: finalValue <= limitValue ? 'done' : 'failed',
       });

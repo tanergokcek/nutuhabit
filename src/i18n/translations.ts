@@ -360,6 +360,11 @@ export interface Translations {
   reminderTimeSelectLabel: string;
   loginRequiredMsg: string;
   dbSaveError: string;
+  futureDateTitle: string;
+  futureDateMsg: string;
+  limitWarningTitle: string;
+  limitWarningMsg: string;
+  selectBadHabitOccurrence: string;
 }
 
 export const tr: Translations = {
@@ -711,6 +716,11 @@ export const tr: Translations = {
   priorityLabel: 'Öncelik',
   addBtn: 'Ekle',
   todosTitle: 'Yapılacaklar',
+  futureDateTitle: 'Gelecek Tarih',
+  futureDateMsg: 'Gelecekteki bir tarih için kayıt giremezsiniz.',
+  limitWarningTitle: 'Limit Aşıldı!',
+  limitWarningMsg: 'Bugünlük sınırı geçtin, daha dikkatli olmalısın.',
+  selectBadHabitOccurrence: 'Lütfen kötü alışkanlığı gerçekleştirdiğinizi onaylayın.',
 };
 
 export const en: Translations = {
@@ -1062,4 +1072,9 @@ export const en: Translations = {
   priorityLabel: 'Priority',
   addBtn: 'Add',
   todosTitle: 'Todos',
+  futureDateTitle: 'Future Date',
+  futureDateMsg: 'You cannot enter data for a future date.',
+  limitWarningTitle: 'Limit Exceeded!',
+  limitWarningMsg: 'You have passed the limit for today, be more careful.',
+  selectBadHabitOccurrence: 'Please confirm that you performed the bad habit.',
 };

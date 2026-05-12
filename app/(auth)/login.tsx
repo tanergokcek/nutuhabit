@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import * as React from 'react';
+import { useState } from 'react';
 import {
   View,
   Text,
@@ -75,18 +76,23 @@ function GoogleIcon({ size = 18 }: { size?: number }) {
 export default function LoginScreen() {
   const router = useRouter();
   const { signIn, signInWithEmail, continueAsGuest, setUser, setLoading: setStoreLoading } = useAuthStore();
-  const [email, setEmail]       = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPwd, setShowPwd]   = useState(false);
-  const [focused, setFocused]   = useState<string | null>(null);
-  const [loading, setLoading]   = useState(false);
+  const [showPwd, setShowPwd] = useState(false);
+  const [focused, setFocused] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const [socialLoading, setSocialLoading] = useState<'google' | null>(null);
 
   // ── Google Auth Request ──
-  const redirectUri = Platform.OS === 'ios' 
-    ? `${REVERSED_IOS_CLIENT_ID}:/oauthredirect` 
+  /*const redirectUri = Platform.OS === 'ios'
+    ? `${REVERSED_IOS_CLIENT_ID}:/oauthredirect`
+    : 'https://auth.expo.io/@tanergokcek/nutuhabit';*/
+
+  const redirectUri = Platform.OS === 'ios'
+    ? `${REVERSED_IOS_CLIENT_ID}:/oauthredirect`
     : AuthSession.makeRedirectUri();
 
+  console.log("redirectUri", redirectUri)
   const [request, response, promptAsync] = AuthSession.useAuthRequest(
     {
       clientId: Platform.OS === 'ios' ? GOOGLE_IOS_CLIENT_ID : GOOGLE_WEB_CLIENT_ID,
@@ -178,7 +184,7 @@ export default function LoginScreen() {
           language: 'tr',
         }
       };
-      
+
       setUser(mappedUser as any, true);
       router.replace('/(tabs)');
     } catch (error: any) {
@@ -239,21 +245,21 @@ export default function LoginScreen() {
           language: 'tr',
         }
       };
-      
+
       setUser(mappedUser as any, true);
-      
+
       console.log("Giriş başarılı!");
       router.replace('/(tabs)');
     } catch (error: any) {
       console.error("Giriş hatası: ", error.message);
       let errorMsg = 'Giriş yapılamadı.';
-      
+
       if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
         errorMsg = 'E-posta veya şifre hatalı.';
       } else if (error.code === 'auth/invalid-email') {
         errorMsg = 'Geçersiz e-posta adresi.';
       }
-      
+
       Alert.alert('Giriş Hatası', errorMsg);
     } finally {
       setLoading(false);
@@ -422,9 +428,9 @@ export default function LoginScreen() {
                 {socialLoading === 'google'
                   ? <ActivityIndicator color="rgba(255,255,255,0.7)" size="small" />
                   : <>
-                      <GoogleIcon size={18} />
-                      <Text style={s.socialLabel}>Google ile devam et</Text>
-                    </>
+                    <GoogleIcon size={18} />
+                    <Text style={s.socialLabel}>Google ile devam et</Text>
+                  </>
                 }
               </TouchableOpacity>
 

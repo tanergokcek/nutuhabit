@@ -69,6 +69,21 @@ export default function DailyRecordsScreen() {
     return entries.sort((a, b) => new Date(b.entry.createdAt).getTime() - new Date(a.entry.createdAt).getTime());
   }, [logs, habits]);
 
+  const groupedEntries = useMemo(() => {
+    const groups: { [date: string]: typeof allEntries } = {};
+    allEntries.forEach(item => {
+      const date = item.log.date;
+      if (!groups[date]) groups[date] = [];
+      groups[date].push(item);
+    });
+    return Object.keys(groups)
+      .sort((a, b) => b.localeCompare(a))
+      .map(date => ({
+        date,
+        data: groups[date]
+      }));
+  }, [allEntries]);
+
   const handleDelete = (entryId: string, log: HabitLog, habitType: string) => {
     Alert.alert(
       i18n.deleteEntryTitle,
@@ -188,48 +203,58 @@ export default function DailyRecordsScreen() {
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {allEntries.length === 0 ? (
+          {groupedEntries.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyText}>{i18n.noDataToday}</Text>
             </View>
           ) : (
-            allEntries.map(({ entry, log, habitName, habitIcon, habitColor, type }) => (
-              <BlurView key={entry.id} intensity={20} tint="dark" style={styles.card}>
-                <View style={[styles.accent, { backgroundColor: habitColor }]} />
-                <View style={styles.cardInner}>
-                  <View style={styles.row}>
-                    <View style={styles.habitInfo}>
-                      <View style={[styles.iconBox, { backgroundColor: `${habitColor}33` }]}>
-                        <HabitIcon icon={habitIcon} size={18} color={habitColor} />
-                      </View>
-                      <View>
-                        <Text style={styles.habitName}>{habitName}</Text>
-                        <Text style={styles.dateText}>{formatDate(log.date)} • {new Date(entry.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
-                      </View>
-                    </View>
-                    <View style={styles.actions}>
-                      <TouchableOpacity onPress={() => handleEdit(entry, log, type)} style={styles.actionBtn}>
-                        <Ionicons name="create-outline" size={18} color="rgba(255,255,255,0.4)" />
-                      </TouchableOpacity>
-                      <TouchableOpacity onPress={() => handleDelete(entry.id, log, type)} style={styles.actionBtn}>
-                        <Ionicons name="trash-outline" size={18} color="#f87171" />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                  
-                  <View style={styles.entryBody}>
-                    <Text style={styles.valueText}>
-                      {type === 'time' || (type === 'bad' && entry.minutes > 0)
-                        ? formatMinutes(entry.minutes)
-                        : (log.status === 'done' ? i18n.completed : (log.status === 'failed' ? i18n.notCompleted : (log.status === 'excused' ? i18n.excused : log.status)))
-                      }
-                    </Text>
-                    {entry.note && (type === 'time' || type === 'bad') && !entry.note.startsWith('{"bedH"') && (
-                      <Text style={styles.noteText}>{entry.note}</Text>
-                    )}
-                  </View>
+            groupedEntries.map((group) => (
+              <View key={group.date} style={styles.dateSection}>
+                <View style={styles.dateHeader}>
+                  <Text style={styles.dateHeaderText}>{formatDate(group.date)}</Text>
+                  <View style={styles.dateHeaderLine} />
                 </View>
-              </BlurView>
+                <View style={{ gap: 12 }}>
+                  {group.data.map(({ entry, log, habitName, habitIcon, habitColor, type }) => (
+                    <BlurView key={entry.id} intensity={20} tint="dark" style={styles.card}>
+                      <View style={[styles.accent, { backgroundColor: habitColor }]} />
+                      <View style={styles.cardInner}>
+                        <View style={styles.row}>
+                          <View style={styles.habitInfo}>
+                            <View style={[styles.iconBox, { backgroundColor: `${habitColor}33` }]}>
+                              <HabitIcon icon={habitIcon} size={18} color={habitColor} />
+                            </View>
+                            <View>
+                              <Text style={styles.habitName}>{habitName}</Text>
+                              <Text style={styles.dateText}>{new Date(entry.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
+                            </View>
+                          </View>
+                          <View style={styles.actions}>
+                            <TouchableOpacity onPress={() => handleEdit(entry, log, type)} style={styles.actionBtn}>
+                              <Ionicons name="create-outline" size={18} color="rgba(255,255,255,0.4)" />
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => handleDelete(entry.id, log, type)} style={styles.actionBtn}>
+                              <Ionicons name="trash-outline" size={18} color="#f87171" />
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                        
+                        <View style={styles.entryBody}>
+                          <Text style={styles.valueText}>
+                            {type === 'time' || (type === 'bad' && entry.minutes > 0)
+                              ? formatMinutes(entry.minutes)
+                              : (log.status === 'done' ? i18n.completed : (log.status === 'failed' ? i18n.notCompleted : (log.status === 'excused' ? i18n.excused : log.status)))
+                            }
+                          </Text>
+                          {entry.note && (type === 'time' || type === 'bad') && !entry.note.startsWith('{"bedH"') && (
+                            <Text style={styles.noteText}>{entry.note}</Text>
+                          )}
+                        </View>
+                      </View>
+                    </BlurView>
+                  ))}
+                </View>
+              </View>
             ))
           )}
           <View style={{ height: 40 }} />
@@ -307,7 +332,19 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18, fontWeight: '800', color: '#fff', letterSpacing: 0.5,
   },
-  scrollContent: { padding: 16, gap: 12 },
+  scrollContent: { padding: 16, gap: 24 },
+  dateSection: { gap: 14 },
+  dateHeader: { 
+    flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 4,
+    paddingHorizontal: 4,
+  },
+  dateHeaderText: { 
+    fontSize: 13, fontWeight: '700', color: 'rgba(168,85,247,0.85)', 
+    textTransform: 'uppercase', letterSpacing: 1
+  },
+  dateHeaderLine: { 
+    flex: 1, height: 1, backgroundColor: 'rgba(168,85,247,0.15)' 
+  },
   card: {
     borderRadius: 18,
     overflow: 'hidden',

@@ -1,4 +1,6 @@
 import { MenuDropdown } from '@/components/MenuDropdown';
+import { FutureDateModal } from '@/components/habits/FutureDateModal';
+import { DoneWeekDots, BadWeekDots } from '@/components/habits/HabitCard';
 import { HabitIcon } from '@/components/ui/HabitIcon';
 import { LAYOUT } from '@/constants/layout';
 import { textStyles } from '@/constants/typography';
@@ -324,17 +326,19 @@ const scStyles = StyleSheet.create({
 interface StreakCelebrationProps {
   visible: boolean;
   streakCount: number;
+  date?: string;
   onClose: () => void;
 }
 
 // ─── Streak Kutlama Modal'ı ────────────────────────────────────────────────────
-function StreakCelebrationModal({ visible, streakCount, onClose }: StreakCelebrationProps) {
+function StreakCelebrationModal({ visible, streakCount, date, onClose }: StreakCelebrationProps) {
   const i18n = useTranslation();
   const WEEK_DAY_NAMES = i18n.weekDaysFull;
   const WEEK_SHORT = i18n.weekDays;
 
-  const todayName = WEEK_DAY_NAMES[new Date().getDay()];
-  const todayWeekIdx = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1;
+  const targetDate = date ? new Date(date) : new Date();
+  const todayName = WEEK_DAY_NAMES[targetDate.getDay()];
+  const todayWeekIdx = targetDate.getDay() === 0 ? 6 : targetDate.getDay() - 1;
   const streakStartIdx = todayWeekIdx - (streakCount - 1);
 
   const slideY = useRef(new Animated.Value(60)).current;
@@ -1452,10 +1456,12 @@ function TimeHabitFeaturedCard({ habit, selectedDate, onPress, t }: { habit: Tim
         </View>
         <View style={darkCardStyles.rightCol}>
           <Text style={[darkCardStyles.bigNum, { color: t.t1 }]}>
-            {dayMins}
-            <Text style={[darkCardStyles.unit, { color: t.t2, fontSize: 13, fontWeight: '400' }]}> / {habit.goalMinutes} {i18n.minUnit}</Text>
+            {streak.currentStreak}
+            <Text style={[darkCardStyles.unit, { color: t.t2 }]}> {i18n.dayUnit}</Text>
           </Text>
-          <Text style={[darkCardStyles.bigLabel, { color: t.t2 }]}>{i18n.today}</Text>
+          <Text style={[darkCardStyles.bigLabel, { color: t.t2 }]}>
+            {dayMins} / {habit.goalMinutes} {i18n.minUnit}
+          </Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -1835,11 +1841,21 @@ export default function HomeScreen() {
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [streakCelebVisible, setStreakCelebVisible] = useState(false);
   const [celebStreakCount, setCelebStreakCount] = useState(1);
+  const [celebDate, setCelebDate] = useState<string | undefined>(undefined);
+  const [futureVisible, setFutureVisible] = useState(false);
 
   // Uyku süresi store'a kaydet
   const saveSleepLog = async () => {
     const totalMins = timeDiff(bedH, bedM, wakeH, wakeM);
     const dateToSave = selectedDate;
+    
+    // Gelecek tarih kontrolü
+    if (dateToSave > getTodayString()) {
+      setConfirmVisible(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setFutureVisible(true);
+      return;
+    }
 
     // Seçili tarihte zaten başarılı log var mı? (kutlamayı tekrar gösterme)
     const wasAlreadyDoneToday = sleepLog?.status === 'done';
@@ -1894,10 +1910,11 @@ export default function HomeScreen() {
     }
 
     // Sadece bugün ilk kez girildiyse kutlama göster
-    if (!wasAlreadyDoneToday && dateToSave === getTodayString()) {
+    if (!wasAlreadyDoneToday) {
       const updatedLogs = useHabitStore.getState().getLogsForHabit(SLEEP_HABIT_ID);
-      const updatedStreak = calculateStreak(updatedLogs, SLEEP_HABIT);
+      const updatedStreak = calculateStreak(updatedLogs, SLEEP_HABIT, dateToSave);
       setCelebStreakCount(updatedStreak.currentStreak);
+      setCelebDate(dateToSave);
       setTimeout(() => setStreakCelebVisible(true), 350);
     }
   };
@@ -1928,6 +1945,11 @@ export default function HomeScreen() {
   const featuredBad = badHabits[badIdx % Math.max(1, badHabits.length)];
 
   const navigateToHabit = (type: 'done' | 'time' | 'bad', id: string) => {
+    if (selectedDate > getTodayString()) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setFutureVisible(true);
+      return;
+    }
     router.push({
       pathname: '/logHabit',
       params: { habitId: id, type, date: selectedDate }
@@ -2171,7 +2193,12 @@ export default function HomeScreen() {
       <StreakCelebrationModal
         visible={streakCelebVisible}
         streakCount={celebStreakCount}
+        date={celebDate}
         onClose={() => setStreakCelebVisible(false)}
+      />
+      <FutureDateModal
+        visible={futureVisible}
+        onClose={() => setFutureVisible(false)}
       />
     </View>
   );

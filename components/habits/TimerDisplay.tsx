@@ -19,6 +19,8 @@ import { FONTS } from '@/constants/fonts';
 
 interface TimerDisplayProps {
   habit: TimeHabit;
+  selectedDate: string;
+  onFutureError?: () => void;
 }
 
 export function TimerDisplay({ habit }: TimerDisplayProps) {
@@ -71,7 +73,13 @@ export function TimerDisplay({ habit }: TimerDisplayProps) {
     };
   }, [isActive, isRunning, tick]);
 
-  const handleStart = () => startTimer(habit.id);
+  const handleStart = () => {
+    if (selectedDate > getTodayString()) {
+      onFutureError?.();
+      return;
+    }
+    startTimer(habit.id);
+  };
   const handlePause = () => pauseTimer();
   const handleResume = () => resumeTimer();
 
@@ -79,7 +87,7 @@ export function TimerDisplay({ habit }: TimerDisplayProps) {
     const session = stopTimer();
     if (session) {
       const totalMin = existingMinutes + Math.floor(session.durationSeconds / 60);
-      updateLog(habit.id, getTodayString(), {
+      updateLog(habit.id, selectedDate, {
         elapsedMinutes: totalMin,
         status: totalMin >= habit.goalMinutes ? 'done' : 'failed',
       });

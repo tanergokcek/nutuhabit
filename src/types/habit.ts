@@ -2,6 +2,8 @@ export type HabitType = 'done' | 'time' | 'bad';
 
 export type LogStatus = 'done' | 'failed' | 'excused' | 'skipped';
 
+export type HabitFrequency = 'Her gün' | 'Hafta içi' | 'Hafta sonu' | 'Özel';
+
 export interface HabitBase {
   id: string;
   name: string;
@@ -15,6 +17,8 @@ export interface HabitBase {
   userId: string;
   reminderEnabled?: boolean;
   reminderTime?: string; // "HH:mm"
+  frequency?: HabitFrequency; // 'Her gün' | 'Hafta içi' | 'Hafta sonu' | 'Özel'
+  customDays?: boolean[]; // [Pt, Sa, Ça, Pe, Cu, Ct, Pz] — length 7, used when frequency === 'Özel'
 }
 
 export interface DoneHabit extends HabitBase {

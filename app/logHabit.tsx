@@ -13,6 +13,7 @@ import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { FutureDateModal } from '@/components/habits/FutureDateModal';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -30,6 +31,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -164,6 +166,8 @@ interface SavedResult {
   habitIcon: string;
   streak: number;
   type: HabitType;
+  date: string;
+  status?: 'done' | 'failed';
 }
 
 function StreakOverlay({ result, onDismiss }: { result: SavedResult; onDismiss: () => void }) {
@@ -171,8 +175,9 @@ function StreakOverlay({ result, onDismiss }: { result: SavedResult; onDismiss: 
   const WEEK_DAY_NAMES_OV = i18n.weekDaysFull;
   const WEEK_SHORT_OV = i18n.weekDays;
 
-  const todayName = WEEK_DAY_NAMES_OV[new Date().getDay()];
-  const todayWeekIdx = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1;
+  const targetDate = new Date(result.date);
+  const todayName = WEEK_DAY_NAMES_OV[targetDate.getDay()];
+  const todayWeekIdx = targetDate.getDay() === 0 ? 6 : targetDate.getDay() - 1;
   const streakStartIdx = todayWeekIdx - (result.streak - 1);
 
   const slideY = useRef(new Animated.Value(80)).current;
@@ -186,7 +191,11 @@ function StreakOverlay({ result, onDismiss }: { result: SavedResult; onDismiss: 
     pillScale.setValue(0.7);
     contentO.setValue(0);
 
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    if (result.status === 'failed') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
     setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium), 200);
 
     Animated.parallel([
@@ -215,7 +224,9 @@ function StreakOverlay({ result, onDismiss }: { result: SavedResult; onDismiss: 
       <Animated.View style={[overlayStyles.sheet, { transform: [{ translateY: slideY }], opacity }]}>
         <BlurView intensity={55} tint="dark" style={StyleSheet.absoluteFillObject} />
         <LinearGradient
-          colors={['rgba(88,28,220,0.72)', 'rgba(40,10,120,0.60)', 'rgba(8,4,35,0.40)']}
+          colors={result.status === 'failed' 
+            ? ['rgba(220,38,38,0.75)', 'rgba(127,29,29,0.65)', 'rgba(45,10,10,0.50)']
+            : ['rgba(88,28,220,0.72)', 'rgba(40,10,120,0.60)', 'rgba(8,4,35,0.40)']}
           style={StyleSheet.absoluteFillObject}
           start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
         />
@@ -234,10 +245,20 @@ function StreakOverlay({ result, onDismiss }: { result: SavedResult; onDismiss: 
         </View>
 
         {/* Büyük streak pill */}
-        <Animated.View style={[overlayStyles.bigPill, { transform: [{ scale: pillScale }] }]}>
-          <Text style={overlayStyles.bigPillFire}>🔥</Text>
-          <Text style={overlayStyles.bigPillNum}>{result.streak}</Text>
-          <Text style={overlayStyles.bigPillLabel}>{i18n.streakDayLabel}</Text>
+        <Animated.View style={[
+          overlayStyles.bigPill, 
+          { transform: [{ scale: pillScale }] },
+          result.status === 'failed' && { backgroundColor: 'rgba(239, 68, 68, 0.2)', borderColor: 'rgba(239, 68, 68, 0.4)', paddingHorizontal: 30 }
+        ]}>
+          <Text style={overlayStyles.bigPillFire}>{result.status === 'failed' ? '⚠️' : '🔥'}</Text>
+          {result.status === 'failed' ? (
+            <Text style={[overlayStyles.bigPillNum, { fontSize: 18, marginTop: 4 }]}>{i18n.limitWarningTitle}</Text>
+          ) : (
+            <>
+              <Text style={overlayStyles.bigPillNum}>{result.streak}</Text>
+              <Text style={overlayStyles.bigPillLabel}>{i18n.streakDayLabel}</Text>
+            </>
+          )}
         </Animated.View>
 
         {/* Günün adı */}
@@ -276,10 +297,14 @@ function StreakOverlay({ result, onDismiss }: { result: SavedResult; onDismiss: 
         {/* Alt mesaj */}
         <Animated.View style={[overlayStyles.msgWrap, { opacity: contentO }]}>
           <Text style={overlayStyles.msgTitle}>
-            {isFirstDay ? i18n.isFirstDayTitle : i18n.greatJobTitle}
+            {result.status === 'failed' 
+              ? i18n.limitWarningTitle 
+              : isFirstDay ? i18n.isFirstDayTitle : i18n.greatJobTitle}
           </Text>
           <Text style={overlayStyles.msgSub}>
-            {isFirstDay ? i18n.firstDaySub : i18n.keepGoingSub}
+            {result.status === 'failed' 
+              ? i18n.limitWarningMsg 
+              : isFirstDay ? i18n.firstDaySub : i18n.keepGoingSub}
           </Text>
         </Animated.View>
 
@@ -290,7 +315,10 @@ function StreakOverlay({ result, onDismiss }: { result: SavedResult; onDismiss: 
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onDismiss(); }}
             activeOpacity={0.85}
           >
-            <LinearGradient colors={['#9333ea', '#6d28d9']} style={StyleSheet.absoluteFillObject} />
+            <LinearGradient 
+              colors={result.status === 'failed' ? ['#ef4444', '#b91c1c'] : ['#9333ea', '#6d28d9']} 
+              style={StyleSheet.absoluteFillObject} 
+            />
             <Ionicons name="checkmark" size={16} color="#fff" />
             <Text style={overlayStyles.btnText}>{i18n.continueBtn}</Text>
           </TouchableOpacity>
@@ -454,6 +482,7 @@ export default function LogHabitScreen() {
   const [selectedHabitId, setSelectedHabitId] = useState<string | null>(params.habitId || null);
   const [habitPickerVisible, setHabitPickerVisible] = useState(false);
   const [status, setStatus] = useState<LogStatus | null>('done');
+  const [futureVisible, setFutureVisible] = useState(false);
   const [notes, setNotes] = useState('');
   const [openPanel, setOpenPanel] = useState<'notes' | null>('notes');
   const [savedResult, setSavedResult] = useState<SavedResult | null>(null);
@@ -536,7 +565,7 @@ export default function LogHabitScreen() {
       setDurM(0);
       setNotes('');
       if (selectedType === 'done') setStatus('done');
-      else if (selectedType === 'bad') setStatus('failed');
+      else if (selectedType === 'bad') setStatus(null);
       else setStatus(null);
     }
   }, [selectedHabitId, selectedDate, logs, selectedType]);
@@ -560,6 +589,13 @@ export default function LogHabitScreen() {
   const curPM = activeField === 'start' ? startPM : endPM;
 
   const handleSave = () => {
+    // Gelecek tarih kontrolü
+    if (selectedDate > getTodayString()) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setFutureVisible(true);
+      return;
+    }
+
     if (!selectedHabitId) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
@@ -599,6 +635,11 @@ export default function LogHabitScreen() {
         entries: newEntries
       });
     } else if (selectedType === 'bad') {
+      if (status !== 'failed') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        Alert.alert(i18n.limitWarningTitle, i18n.selectBadHabitOccurrence);
+        return;
+      }
       const badHabit = habit as BadHabit;
       const didIt = status === 'failed';
       const prevLog = logs.find(l => l.habitId === habit.id && l.date === selectedDate);
@@ -705,17 +746,25 @@ export default function LogHabitScreen() {
     // Zustand güncellemesi senkron — log kaydedildikten hemen sonra streak hesapla
     const updatedLogs = useHabitStore.getState().getLogsForHabit(habit.id);
     const updatedHabit = useHabitStore.getState().habits.find(h => h.id === habit.id) || habit;
-    const streakInfo = calculateStreak(updatedLogs, updatedHabit);
+    const streakInfo = calculateStreak(updatedLogs, updatedHabit, selectedDate);
 
-    if (streakInfo.currentStreak > 0) {
+    const currentStatus = updatedLogs.find(l => l.date === selectedDate)?.status;
+
+    const showOverlay = selectedType === 'bad' 
+      ? currentStatus === 'failed' 
+      : streakInfo.currentStreak > 0;
+
+    if (showOverlay) {
       setSavedResult({
         habitName: habit.name,
         habitIcon: habit.icon,
         streak: streakInfo.currentStreak,
         type: selectedType,
+        date: selectedDate,
+        status: currentStatus as 'done' | 'failed',
       });
     } else {
-      // Streak yok (kötü alışkanlık başarısız vs.) — doğrudan geri git
+      // Streak yok ve başarısız değil (normal kayıt) — doğrudan geri git
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       router.back();
     }
@@ -1064,6 +1113,11 @@ export default function LogHabitScreen() {
           }}
         />
       )}
+
+      <FutureDateModal
+        visible={futureVisible}
+        onClose={() => setFutureVisible(false)}
+      />
     </KeyboardAvoidingView>
   );
 }

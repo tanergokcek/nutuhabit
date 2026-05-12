@@ -47,6 +47,10 @@ export async function fetchHabits(userId: string): Promise<Habit[]> {
       habit.reminderEnabled = data.reminderEnabled || false;
       habit.reminderTime = data.reminderTime || '08:00';
 
+      // Frequency data
+      habit.frequency = data.frequency || 'Her gün';
+      if (data.customDays) habit.customDays = data.customDays;
+
       habits.push(habit as Habit);
     });
 

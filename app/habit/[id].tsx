@@ -17,13 +17,13 @@ import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { useHabitStore, SLEEP_HABIT_ID, SLEEP_HABIT } from '@/src/store/useHabitStore';
 import { useTranslation } from '@/src/hooks/useTranslation';
-import { TimerDisplay } from '@/components/habits/TimerDisplay';
 import { DoneToggle } from '@/components/habits/DoneToggle';
 import { BadHabitCounter } from '@/components/habits/BadHabitCounter';
 import { StreakFire } from '@/components/habits/StreakFire';
 import { MonthlyHeatmap } from '@/components/stats/MonthlyHeatmap';
 import { useStreak } from '@/src/hooks/useStreak';
 import { getTodayString } from '@/src/utils/date';
+import { FutureDateModal } from '@/components/habits/FutureDateModal';
 import { DoneHabit, TimeHabit, BadHabit, LogEntry, HabitLog } from '@/src/types/habit';
 import { COLORS } from '@/constants/colors';
 import { HabitIcon } from '@/components/ui/HabitIcon';
@@ -81,12 +81,20 @@ export default function HabitDetailScreen() {
   const habit = habits.find((h) => h.id === id) || (id === SLEEP_HABIT_ID ? SLEEP_HABIT : undefined);
   const selectedLog = logs.find(l => l.habitId === id && l.date === selectedDate);
   const todayLog = getTodayLog(id ?? '');
-  const streak = useStreak(id ?? '');
+  const streak = useStreak(id ?? '', selectedDate);
   const { user, isGuest } = useAuthStore();
+  const [futureVisible, setFutureVisible] = React.useState(false);
 
 
   const handleQuickTimeUpdate = async (amount: number) => {
     if (!habit) return;
+
+    if (selectedDate > getTodayString()) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setFutureVisible(true);
+      return;
+    }
+
     const logToUpdate = selectedLog || {
       id: `local-${Date.now()}`,
       habitId: habit.id,
@@ -198,6 +206,12 @@ export default function HabitDetailScreen() {
           <DoneToggle
             status={selectedLog?.status}
             onChange={async (newStatus) => {
+              if (selectedDate > getTodayString()) {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+                setFutureVisible(true);
+                return;
+              }
+
               const newEntry: LogEntry = {
                 id: Date.now().toString(),
                 minutes: 0,
@@ -471,7 +485,15 @@ export default function HabitDetailScreen() {
           <View style={{ gap: 12 }}>
             {(habit as BadHabit).limitType === 'time' ? (
               <>
-                <BadHabitCounter habit={habit as BadHabit} log={selectedLog} />
+                <BadHabitCounter 
+                  habit={habit as BadHabit} 
+                  log={selectedLog} 
+                  selectedDate={selectedDate}
+                  onFutureError={() => {
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+                    setFutureVisible(true);
+                  }}
+                />
                 <View style={[quickAdjustStyles.container, { marginTop: 20 }]}>
                   <TouchableOpacity onPress={() => handleQuickTimeUpdate(-15)} style={quickAdjustStyles.btn}>
                     <Text style={quickAdjustStyles.btnText}>-15</Text>
@@ -491,6 +513,12 @@ export default function HabitDetailScreen() {
               <DoneToggle
                 status={selectedLog?.status}
                 onChange={async (newStatus) => {
+                  if (selectedDate > getTodayString()) {
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+                    setFutureVisible(true);
+                    return;
+                  }
+
                   const newEntry: LogEntry = {
                     id: Date.now().toString(),
                     minutes: 0,
@@ -633,6 +661,10 @@ export default function HabitDetailScreen() {
         {habit.type === 'bad' && renderBadContent()}
       </SafeAreaView>
 
+      <FutureDateModal
+        visible={futureVisible}
+        onClose={() => setFutureVisible(false)}
+      />
     </View>
   );
 }

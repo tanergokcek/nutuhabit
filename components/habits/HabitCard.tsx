@@ -16,6 +16,7 @@ import { useStreak } from '@/src/hooks/useStreak';
 import { HabitIcon } from '@/components/ui/HabitIcon';
 import { getTodayString } from '@/src/utils/date';
 import { formatMinutes } from '@/src/utils/formatTime';
+import { isDayActiveForHabit } from '@/src/utils/frequency';
 import { COLORS } from '@/constants/colors';
 import { LAYOUT } from '@/constants/layout';
 import { textStyles, textColors } from '@/constants/typography';
@@ -37,8 +38,9 @@ function getThisWeekDates() {
 }
 
 // ─── Done streak haftası ──────────────────────────────────────────────────────
-function DoneWeekDots({ habitId }: { habitId: string }) {
+export function DoneWeekDots({ habitId }: { habitId: string }) {
   const getLogsForHabit = useHabitStore((s) => s.getLogsForHabit);
+  const habit = useHabitStore((s) => s.habits).find(h => h.id === habitId);
   const logs = getLogsForHabit(habitId);
   const weekDates = getThisWeekDates();
 
@@ -48,16 +50,24 @@ function DoneWeekDots({ habitId }: { habitId: string }) {
         const log = logs.find((l) => l.date === dateStr);
         const isDone = log?.status === 'done';
         const isFuture = dateStr > getTodayString();
+        const isActiveDay = habit ? isDayActiveForHabit(habit, dateStr) : true;
+
         return (
           <View key={dateStr} style={dotStyles.dayCol}>
-            <Text style={[dotStyles.dayLabel, isToday && dotStyles.dayLabelToday]}>{label}</Text>
+            <Text style={[
+              dotStyles.dayLabel, 
+              isToday && dotStyles.dayLabelToday,
+              !isActiveDay && dotStyles.dayLabelInactive
+            ]}>{label}</Text>
             <View style={[
               dotStyles.circle,
               isDone && dotStyles.circleDone,
               isToday && !isDone && dotStyles.circleToday,
               isFuture && dotStyles.circleFuture,
+              !isActiveDay && !isDone && dotStyles.circleInactive,
             ]}>
               {isDone && <Text style={dotStyles.checkmark}>✓</Text>}
+              {!isActiveDay && !isDone && <Text style={dotStyles.inactiveMark}>-</Text>}
             </View>
           </View>
         );
@@ -67,8 +77,9 @@ function DoneWeekDots({ habitId }: { habitId: string }) {
 }
 
 // ─── Bad habit haftası ────────────────────────────────────────────────────────
-function BadWeekDots({ habitId }: { habitId: string }) {
+export function BadWeekDots({ habitId }: { habitId: string }) {
   const getLogsForHabit = useHabitStore((s) => s.getLogsForHabit);
+  const habit = useHabitStore((s) => s.habits).find(h => h.id === habitId);
   const logs = getLogsForHabit(habitId);
   const weekDates = getThisWeekDates();
 
@@ -79,18 +90,26 @@ function BadWeekDots({ habitId }: { habitId: string }) {
         const isGood = log?.status === 'done';
         const isBad = log?.status === 'failed';
         const isFuture = dateStr > getTodayString();
+        const isActiveDay = habit ? isDayActiveForHabit(habit, dateStr) : true;
+
         return (
           <View key={dateStr} style={dotStyles.dayCol}>
-            <Text style={[dotStyles.dayLabel, isToday && dotStyles.dayLabelToday]}>{label}</Text>
+            <Text style={[
+              dotStyles.dayLabel, 
+              isToday && dotStyles.dayLabelToday,
+              !isActiveDay && dotStyles.dayLabelInactive
+            ]}>{label}</Text>
             <View style={[
               dotStyles.circle,
               isGood && dotStyles.circleGood,
               isBad && dotStyles.circleBad,
               isToday && !isGood && !isBad && dotStyles.circleToday,
               isFuture && dotStyles.circleFuture,
+              !isActiveDay && !isGood && !isBad && dotStyles.circleInactive,
             ]}>
               {isGood && <Text style={dotStyles.checkmark}>✓</Text>}
               {isBad && <Text style={dotStyles.crossmark}>✗</Text>}
+              {!isActiveDay && !isGood && !isBad && <Text style={dotStyles.inactiveMark}>-</Text>}
             </View>
           </View>
         );
@@ -146,6 +165,19 @@ const dotStyles = StyleSheet.create({
   circleFuture: {
     opacity: 0.35,
   },
+  dayLabelInactive: {
+    opacity: 0.3,
+  },
+  circleInactive: {
+    borderStyle: 'dashed',
+    borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'transparent',
+  },
+  inactiveMark: {
+    ...textStyles.caption2, 
+    color: 'rgba(255,255,255,0.2)',
+    fontWeight: '600'
+  },
   checkmark: { ...textStyles.caption2, color: '#fff', fontWeight: '700' },
   crossmark:  { ...textStyles.caption2, color: '#fff', fontWeight: '700' },
 });
@@ -170,7 +202,8 @@ interface HabitCardProps {
 
 function DoneHabitCard({ habit, log, onPress }: { habit: DoneHabit; log: HabitLog | undefined; onPress: () => void }) {
   const toggleLog = useHabitStore((state) => state.toggleLog);
-  const streak = useStreak(habit.id);
+  const selectedDate = useHabitStore((state) => state.selectedDate);
+  const streak = useStreak(habit.id, selectedDate);
 
   return (
     <TouchableOpacity
@@ -196,7 +229,7 @@ function DoneHabitCard({ habit, log, onPress }: { habit: DoneHabit; log: HabitLo
               <DoneToggle
                 status={log?.status}
                 onChange={(status) => {
-                  toggleLog(habit.id, getTodayString());
+                  toggleLog(habit.id, selectedDate);
                   void status;
                 }}
                 habitId={habit.id}
@@ -212,7 +245,8 @@ function DoneHabitCard({ habit, log, onPress }: { habit: DoneHabit; log: HabitLo
 }
 
 function TimeHabitCard({ habit, log, onPress }: { habit: TimeHabit; log: HabitLog | undefined; onPress: () => void }) {
-  const streak = useStreak(habit.id);
+  const selectedDate = useHabitStore((state) => state.selectedDate);
+  const streak = useStreak(habit.id, selectedDate);
   const progress = Math.min(1, (log?.elapsedMinutes ?? 0) / habit.goalMinutes);
   const pct = Math.round(progress * 100);
   const progressBarWidth = `${pct}%` as `${number}%`;
@@ -256,7 +290,8 @@ function TimeHabitCard({ habit, log, onPress }: { habit: TimeHabit; log: HabitLo
 }
 
 function BadHabitCard({ habit, log, onPress }: { habit: BadHabit; log: HabitLog | undefined; onPress: () => void }) {
-  const streak = useStreak(habit.id);
+  const selectedDate = useHabitStore((state) => state.selectedDate);
+  const streak = useStreak(habit.id, selectedDate);
   const progress = Math.min(1, (log?.usedMinutes ?? 0) / habit.limitMinutes);
   const pct = Math.round(progress * 100);
   const progressBarWidth = `${pct}%` as `${number}%`;
