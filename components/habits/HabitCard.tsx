@@ -48,7 +48,9 @@ export function DoneWeekDots({ habitId }: { habitId: string }) {
     <View style={dotStyles.row}>
       {weekDates.map(({ dateStr, label, isToday }) => {
         const log = logs.find((l) => l.date === dateStr);
-        const isDone = log?.status === 'done';
+        const isDone = habit?.type === 'time' 
+          ? (log?.status === 'excused' || (log && log.elapsedMinutes !== undefined && log.elapsedMinutes >= (habit as TimeHabit).goalMinutes))
+          : (log?.status === 'done' || log?.status === 'excused');
         const isFuture = dateStr > getTodayString();
         const isActiveDay = habit ? isDayActiveForHabit(habit, dateStr) : true;
 

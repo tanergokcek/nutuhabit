@@ -145,8 +145,13 @@ export default function NewHabitScreen() {
       };
 
       if (type === 'done' || type === 'time') {
-        habitData.frequency = frequency === i18n.freqCustom ? 'Özel' : (frequency === i18n.freqEveryday ? 'Her gün' : frequency);
-        if (frequency === 'Özel') {
+        if (frequency === i18n.freqEveryday) habitData.frequency = 'Her gün';
+        else if (frequency === i18n.freqWeekdays) habitData.frequency = 'Hafta içi';
+        else if (frequency === i18n.freqWeekends) habitData.frequency = 'Hafta sonu';
+        else if (frequency === i18n.freqCustom) habitData.frequency = 'Özel';
+        else habitData.frequency = 'Her gün';
+
+        if (frequency === i18n.freqCustom) {
           habitData.customDays = customDays;
         }
       }

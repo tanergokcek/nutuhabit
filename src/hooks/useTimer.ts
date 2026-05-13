@@ -68,10 +68,16 @@ export function useTimer(): UseTimerReturn {
     const habitId = activeHabitId;
     const session = stopTimer();
     if (session && habitId) {
+      const habit = useHabitStore.getState().habits.find(h => h.id === habitId);
       const elapsedMinutes = Math.floor(session.durationSeconds / 60);
+      
+      // Target süreye ulaşıldı mı?
+      const goal = (habit as any)?.goalMinutes || 0;
+      const nextStatus = elapsedMinutes >= goal ? 'done' : 'failed';
+
       updateLog(habitId, getTodayString(), {
         elapsedMinutes,
-        status: 'done',
+        status: nextStatus,
       });
     }
   }, [stopTimer, activeHabitId, updateLog]);

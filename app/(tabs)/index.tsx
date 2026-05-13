@@ -16,6 +16,7 @@ import { BadHabit, DoneHabit, TimeHabit, Habit, HabitLog, HabitType, StreakInfo,
 import { getTodayString } from '@/src/utils/date';
 import { formatMinutes } from '@/src/utils/formatTime';
 import { calculateStreak } from '@/src/utils/streak';
+import { isDayActiveForHabit } from '@/src/utils/frequency';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
@@ -526,7 +527,7 @@ const celebStyles = StyleSheet.create({
   },
   bigPillFire: { fontSize: 30 },
   bigPillNum: {
-    ...textStyles.largeTitleBold, fontSize: 52,     // hero number — intentionally oversized
+    ...textStyles.largeTitleBold, fontSize: 42,     // hero number
     color: '#e9d5ff',
     fontFamily: 'InriaSerif_700Bold',
     letterSpacing: -1,
@@ -535,7 +536,7 @@ const celebStyles = StyleSheet.create({
     ...textStyles.title3,                           // 20pt
     color: 'rgba(233,213,255,0.60)',
     alignSelf: 'flex-end',
-    marginBottom: 8,
+    marginBottom: 6,
   },
 
   // Günün adı
@@ -1326,7 +1327,7 @@ const secStyles = StyleSheet.create({
   changeText: { ...textStyles.caption2Medium, letterSpacing: 0.8 },                    // 11pt
 });
 
-function WeekDotRow({ logs, selectedDate }: { logs: { dateStr: string; status?: string }[]; selectedDate: string }) {
+function WeekDotRow({ logs, selectedDate, habit }: { logs: { dateStr: string; status?: string }[]; selectedDate: string; habit: Habit }) {
   const STATUS_COLORS = {
     done: '#a855f7',    // Mor (Yaptım)
     failed: '#ec4899',  // Pembe (Yapmadım)
@@ -1337,12 +1338,18 @@ function WeekDotRow({ logs, selectedDate }: { logs: { dateStr: string; status?: 
     <View style={dotRowStyles.row}>
       {logs.map(({ dateStr, status }) => {
         const dotColor = status ? STATUS_COLORS[status as keyof typeof STATUS_COLORS] : null;
+        const isActiveDay = isDayActiveForHabit(habit, dateStr);
 
         return (
           <View key={dateStr} style={dotRowStyles.col}>
             <View style={[
               dotRowStyles.dot,
-              dotColor ? { backgroundColor: dotColor, borderColor: dotColor } : { backgroundColor: 'rgba(255,255,255,0.15)' },
+              dotColor 
+                ? { backgroundColor: dotColor, borderColor: dotColor } 
+                : (isActiveDay 
+                    ? { backgroundColor: 'rgba(255,255,255,0.25)' } 
+                    : { backgroundColor: 'rgba(255,255,255,0.05)' }
+                  ),
             ]} />
             {dateStr === selectedDate && <View style={dotRowStyles.activeIndicator} />}
           </View>
@@ -1406,7 +1413,7 @@ function ActiveHabitCard({ habit, selectedDate, onPress, t }: { habit: DoneHabit
         <View style={darkCardStyles.nameCol}>
           <Text style={[darkCardStyles.name, { color: t.t1 }]}>{habit.name}</Text>
           <Text style={[darkCardStyles.sub, { color: t.t2 }]}>{i18n.daily} · {currentStreak > 0 ? `🔥 ${currentStreak}. ${i18n.dayUnit}` : i18n.startStreak}</Text>
-          <WeekDotRow logs={weekLogs} selectedDate={selectedDate} />
+          <WeekDotRow logs={weekLogs} selectedDate={selectedDate} habit={habit} />
         </View>
         <View style={darkCardStyles.rightCol}>
           <Text style={[darkCardStyles.bigNum, { color: t.t1 }]}>{currentStreak}<Text style={[darkCardStyles.unit, { color: t.t2 }]}> {i18n.dayUnit}</Text></Text>
@@ -1431,8 +1438,13 @@ function TimeHabitFeaturedCard({ habit, selectedDate, onPress, t }: { habit: Tim
 
   const weekLogs = weekDays.map((d) => {
     const log = logs.find((l) => l.date === d.dateStr);
-    const completed = log?.status === 'done' || (log && log.elapsedMinutes !== undefined && log.elapsedMinutes > 0);
-    return { dateStr: d.dateStr, status: completed ? 'done' : undefined };
+    let status: string | undefined = undefined;
+    if (log?.status === 'excused') {
+      status = 'excused';
+    } else if (log && log.elapsedMinutes !== undefined && log.elapsedMinutes >= habit.goalMinutes) {
+      status = 'done';
+    }
+    return { dateStr: d.dateStr, status };
   });
 
   return (
@@ -1452,7 +1464,7 @@ function TimeHabitFeaturedCard({ habit, selectedDate, onPress, t }: { habit: Tim
         <View style={darkCardStyles.nameCol}>
           <Text style={[darkCardStyles.name, { color: t.t1 }]}>{habit.name}</Text>
           <Text style={[darkCardStyles.sub, { color: t.t2 }]}>{streak.currentStreak > 0 ? `🔥 ${streak.currentStreak} ${i18n.dayUnit}` : ''}</Text>
-          <WeekDotRow logs={weekLogs} selectedDate={selectedDate} />
+          <WeekDotRow logs={weekLogs} selectedDate={selectedDate} habit={habit} />
         </View>
         <View style={darkCardStyles.rightCol}>
           <Text style={[darkCardStyles.bigNum, { color: t.t1 }]}>
@@ -1534,7 +1546,7 @@ function BadHabitFeaturedCard({ habit, selectedDate, onPress, t }: { habit: BadH
           <Text style={[darkCardStyles.sub, { color: t.t2 }]}>
             {i18n.limitLabel + ' '}{isTime ? formatMinutes(habit.limitMinutes || 0) : `${habit.limitCount || 0} ${i18n.timesUnit}`}{' · '}{habit.limitPeriod === 'daily' ? i18n.daily : habit.limitPeriod === 'weekly' ? i18n.weekly : i18n.monthly}
           </Text>
-          <WeekDotRow logs={weekLogs} selectedDate={selectedDate} />
+          <WeekDotRow logs={weekLogs} selectedDate={selectedDate} habit={habit} />
         </View>
         <View style={darkCardStyles.rightCol}>
           <Text style={[darkCardStyles.bigNum, { color: t.t1 }, exceeded && { color: '#f87171' }]}>

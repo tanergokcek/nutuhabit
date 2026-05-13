@@ -224,7 +224,7 @@ function StreakOverlay({ result, onDismiss }: { result: SavedResult; onDismiss: 
       <Animated.View style={[overlayStyles.sheet, { transform: [{ translateY: slideY }], opacity }]}>
         <BlurView intensity={55} tint="dark" style={StyleSheet.absoluteFillObject} />
         <LinearGradient
-          colors={result.status === 'failed' 
+          colors={(result.type === 'bad' && result.status === 'failed') 
             ? ['rgba(220,38,38,0.75)', 'rgba(127,29,29,0.65)', 'rgba(45,10,10,0.50)']
             : ['rgba(88,28,220,0.72)', 'rgba(40,10,120,0.60)', 'rgba(8,4,35,0.40)']}
           style={StyleSheet.absoluteFillObject}
@@ -248,10 +248,10 @@ function StreakOverlay({ result, onDismiss }: { result: SavedResult; onDismiss: 
         <Animated.View style={[
           overlayStyles.bigPill, 
           { transform: [{ scale: pillScale }] },
-          result.status === 'failed' && { backgroundColor: 'rgba(239, 68, 68, 0.2)', borderColor: 'rgba(239, 68, 68, 0.4)', paddingHorizontal: 30 }
+          (result.type === 'bad' && result.status === 'failed') && { backgroundColor: 'rgba(239, 68, 68, 0.2)', borderColor: 'rgba(239, 68, 68, 0.4)', paddingHorizontal: 30 }
         ]}>
-          <Text style={overlayStyles.bigPillFire}>{result.status === 'failed' ? '⚠️' : '🔥'}</Text>
-          {result.status === 'failed' ? (
+          <Text style={overlayStyles.bigPillFire}>{(result.type === 'bad' && result.status === 'failed') ? '⚠️' : '🔥'}</Text>
+          {(result.type === 'bad' && result.status === 'failed') ? (
             <Text style={[overlayStyles.bigPillNum, { fontSize: 18, marginTop: 4 }]}>{i18n.limitWarningTitle}</Text>
           ) : (
             <>
@@ -297,12 +297,12 @@ function StreakOverlay({ result, onDismiss }: { result: SavedResult; onDismiss: 
         {/* Alt mesaj */}
         <Animated.View style={[overlayStyles.msgWrap, { opacity: contentO }]}>
           <Text style={overlayStyles.msgTitle}>
-            {result.status === 'failed' 
+            {(result.type === 'bad' && result.status === 'failed') 
               ? i18n.limitWarningTitle 
               : isFirstDay ? i18n.isFirstDayTitle : i18n.greatJobTitle}
           </Text>
           <Text style={overlayStyles.msgSub}>
-            {result.status === 'failed' 
+            {(result.type === 'bad' && result.status === 'failed') 
               ? i18n.limitWarningMsg 
               : isFirstDay ? i18n.firstDaySub : i18n.keepGoingSub}
           </Text>
@@ -316,7 +316,7 @@ function StreakOverlay({ result, onDismiss }: { result: SavedResult; onDismiss: 
             activeOpacity={0.85}
           >
             <LinearGradient 
-              colors={result.status === 'failed' ? ['#ef4444', '#b91c1c'] : ['#9333ea', '#6d28d9']} 
+              colors={(result.type === 'bad' && result.status === 'failed') ? ['#ef4444', '#b91c1c'] : ['#9333ea', '#6d28d9']} 
               style={StyleSheet.absoluteFillObject} 
             />
             <Ionicons name="checkmark" size={16} color="#fff" />
@@ -382,13 +382,13 @@ const overlayStyles = StyleSheet.create({
   },
   bigPillFire: { fontSize: 30 },
   bigPillNum: {
-    fontSize: 52, fontWeight: '800', color: '#e9d5ff',
+    fontSize: 42, fontWeight: '800', color: '#e9d5ff',
     fontFamily: 'InriaSerif_700Bold', letterSpacing: -1,
   },
   bigPillLabel: {
     fontSize: 18, fontWeight: '600',
     color: 'rgba(233,213,255,0.60)',
-    alignSelf: 'flex-end', marginBottom: 8,
+    alignSelf: 'flex-end', marginBottom: 6,
   },
 
   // Gün adı
@@ -629,19 +629,23 @@ export default function LogHabitScreen() {
       const newEntries = [...prevEntries, newEntry];
 
       updateLog(habit.id, selectedDate, { 
-        status: 'done', 
+        status: newMinutes >= (habit as TimeHabit).goalMinutes ? 'done' : 'failed', 
         elapsedMinutes: newMinutes, 
         note: noteValue,
         entries: newEntries
       });
     } else if (selectedType === 'bad') {
-      if (status !== 'failed') {
+      const badHabit = habit as BadHabit;
+      const isTimeBased = badHabit.limitType === 'time';
+      
+      // Süre tabanlı kötü alışkanlıklarda onay kutusu yok, süre girilmesi yeterli
+      if (!isTimeBased && status !== 'failed') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         Alert.alert(i18n.limitWarningTitle, i18n.selectBadHabitOccurrence);
         return;
       }
-      const badHabit = habit as BadHabit;
-      const didIt = status === 'failed';
+
+      const didIt = isTimeBased ? elapsedMinutes > 0 : status === 'failed';
       const prevLog = logs.find(l => l.habitId === habit.id && l.date === selectedDate);
       const prevEntries = prevLog?.entries ?? [];
       const newEntries = didIt ? [...prevEntries, newEntry] : prevEntries;
@@ -697,11 +701,11 @@ export default function LogHabitScreen() {
         const newEntries = [...prevEntries, newEntry];
 
         logData.elapsedMinutes = newMinutes;
-        logData.status = 'done';
+        logData.status = newMinutes >= (habit as TimeHabit).goalMinutes ? 'done' : 'failed';
         logData.entries = newEntries;
       } else if (selectedType === 'bad') {
         const badHabit = habit as BadHabit;
-        const didIt = status === 'failed';
+        const didIt = badHabit.limitType === 'time' ? elapsedMinutes > 0 : status === 'failed';
         if (badHabit.limitType === 'time') {
           const prevMinutes = prevLog?.usedMinutes ?? 0;
           const newMinutes = prevMinutes + elapsedMinutes;
@@ -752,7 +756,7 @@ export default function LogHabitScreen() {
 
     const showOverlay = selectedType === 'bad' 
       ? currentStatus === 'failed' 
-      : streakInfo.currentStreak > 0;
+      : (currentStatus === 'done' && streakInfo.currentStreak > 0);
 
     if (showOverlay) {
       setSavedResult({

@@ -1,4 +1,4 @@
-import { Habit, HabitLog, HabitType, StreakInfo } from '@/src/types/habit';
+import { Habit, HabitLog, HabitType, StreakInfo, TimeHabit } from '@/src/types/habit';
 import { getTodayString, addDays } from './date';
 import { isDayActiveForHabit } from './frequency';
 
@@ -21,9 +21,16 @@ export function calculateStreak(logs: HabitLog[], habit: Habit, referenceDate?: 
 
   // Sadece başarılı veya mazeretli olan logları seri say
   const completedLogs = relevantLogs.filter((log) => {
-    if (type === 'done') return log.status === 'done' || log.status === 'excused';
-    if (type === 'time') return log.status === 'done' || log.status === 'excused';
-    if (type === 'bad') return log.status === 'done' || log.status === 'excused';
+    if (log.status === 'excused') return true;
+    
+    if (type === 'done') return log.status === 'done';
+    if (type === 'time') {
+      const goal = (habit as TimeHabit).goalMinutes || 0;
+      const elapsed = log.elapsedMinutes || 0;
+      // Eğer hedef süreye ulaşıldıysa streak saysın (mazeretli durumu yukarıda kontrol ediliyor)
+      return elapsed >= goal;
+    }
+    if (type === 'bad') return log.status === 'done';
     return false;
   });
 

@@ -315,13 +315,13 @@ const overlayStyles = StyleSheet.create({
   },
   bigPillFire: { fontSize: 30 },
   bigPillNum: {
-    fontSize: 52, fontWeight: '800', color: '#e9d5ff',
+    fontSize: 42, fontWeight: '800', color: '#e9d5ff',
     fontFamily: 'InriaSerif_700Bold', letterSpacing: -1,
   },
   bigPillLabel: {
     fontSize: 18, fontWeight: '600',
     color: 'rgba(233,213,255,0.60)',
-    alignSelf: 'flex-end', marginBottom: 8,
+    alignSelf: 'flex-end', marginBottom: 6,
   },
 
   // Gün adı

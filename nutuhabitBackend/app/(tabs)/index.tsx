@@ -498,7 +498,7 @@ const celebStyles = StyleSheet.create({
   },
   bigPillFire: { fontSize: 30 },
   bigPillNum: {
-    ...textStyles.largeTitleBold, fontSize: 52,     // hero number — intentionally oversized
+    ...textStyles.largeTitleBold, fontSize: 42,     // hero number
     color: '#e9d5ff',
     fontFamily: 'InriaSerif_700Bold',
     letterSpacing: -1,
@@ -507,7 +507,7 @@ const celebStyles = StyleSheet.create({
     ...textStyles.title3,                           // 20pt
     color: 'rgba(233,213,255,0.60)',
     alignSelf: 'flex-end',
-    marginBottom: 8,
+    marginBottom: 6,
   },
 
   // Günün adı
