@@ -16,13 +16,17 @@ import { resetAllNotes } from '@/src/services/notes';
 import React, { useState } from 'react';
 import {
   Alert,
-  ScrollView, StatusBar,
+  Modal,
+  ScrollView, 
+  StatusBar,
   StyleSheet,
   Switch,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface RowToggle {
@@ -71,6 +75,14 @@ export default function SettingsScreen() {
       ],
     },
     {
+      label: i18n.sectionAccount,
+      rows: [
+        { type: 'arrow', id: 'changeName', emoji: '👤', iconBg: '#4c1d95', title: i18n.changeName, subtitle: user?.displayName || '' },
+        { type: 'arrow', id: 'changeEmail', emoji: '📧', iconBg: '#1e3a8a', title: i18n.changeEmail, subtitle: user?.email || '' },
+        { type: 'arrow', id: 'changePassword', emoji: '🔑', iconBg: '#701a75', title: i18n.changePassword, subtitle: '********' },
+      ],
+    },
+    {
       label: i18n.sectionApp,
       rows: [
         { type: 'arrow', id: 'reset', emoji: '🗑️', iconBg: '#2d0a0a', title: i18n.resetData, subtitle: i18n.resetDataSubtitle, danger: true },
@@ -89,6 +101,13 @@ export default function SettingsScreen() {
     notifs: true,
     weeklyReport: true,
   });
+
+  const [editModal, setEditModal] = useState<{
+    visible: boolean;
+    type: 'name' | 'email' | 'password' | null;
+    value: string;
+    title: string;
+  }>({ visible: false, type: null, value: '', title: '' });
 
   const toggle = (id: string) => {
     if (id === 'darkMode') {
@@ -138,8 +157,39 @@ export default function SettingsScreen() {
       );
     } else if (id === 'lang') {
       toggleLanguage();
+    } else if (id === 'changeName') {
+      setEditModal({ visible: true, type: 'name', value: user?.displayName || '', title: i18n.changeName });
+    } else if (id === 'changeEmail') {
+      setEditModal({ visible: true, type: 'email', value: user?.email || '', title: i18n.changeEmail });
+    } else if (id === 'changePassword') {
+      setEditModal({ visible: true, type: 'password', value: '', title: i18n.changePassword });
     } else {
       Alert.alert(title, i18n.comingSoonMsg);
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editModal.type) return;
+    
+    try {
+      const { updateUserProfile, updateUserEmail, updateUserPassword } = await import('@/src/services/auth');
+      const { updateUser } = useAuthStore.getState();
+
+      if (editModal.type === 'name') {
+        await updateUserProfile(editModal.value);
+        updateUser({ displayName: editModal.value });
+      } else if (editModal.type === 'email') {
+        await updateUserEmail(editModal.value);
+        updateUser({ email: editModal.value });
+      } else if (editModal.type === 'password') {
+        await updateUserPassword(editModal.value);
+      }
+
+      Alert.alert(i18n.successLabel, i18n.updateSuccess);
+      setEditModal({ ...editModal, visible: false });
+    } catch (error: any) {
+      console.error("Update error:", error);
+      Alert.alert(i18n.errorTitle, i18n.updateError + "\n" + (error.message || ''));
     }
   };
 
@@ -203,7 +253,10 @@ export default function SettingsScreen() {
             </View>
           ) : (
             /* ── Giriş yapmış profil ───────────────────── */
-            <View style={styles.profileSection}>
+            <TouchableOpacity 
+              style={styles.profileSection}
+              onPress={() => handleArrow('changeName', i18n.changeName)}
+            >
               <View style={styles.avatarWrap}>
                 <LinearGradient
                   colors={['#ec4899', '#a855f7']}
@@ -217,7 +270,7 @@ export default function SettingsScreen() {
               <TouchableOpacity onPress={() => Alert.alert('Premium', i18n.comingSoonMsg)}>
                 <Text style={styles.profileLink}>{i18n.freeMember}</Text>
               </TouchableOpacity>
-            </View>
+            </TouchableOpacity>
           )}
 
           {/* Sections */}
@@ -257,7 +310,7 @@ export default function SettingsScreen() {
                           <Text style={[styles.rowTitle, { color: t.t1 }, row.danger && styles.rowTitleDanger]}>
                             {row.title}
                           </Text>
-                          <Text style={[styles.rowSub, { color: t.t3 }]}>
+                          <Text style={[styles.rowSub, { color: t.t3 }]} numberOfLines={1}>
                             {row.id === 'lang' ? (language === 'tr' ? '🇹🇷  Türkçe' : '🇬🇧  English') : row.subtitle}
                           </Text>
                         </View>
@@ -307,6 +360,55 @@ export default function SettingsScreen() {
           <View style={{ height: 40 }} />
         </ScrollView>
       </SafeAreaView>
+
+      {/* Edit User Modal */}
+      <Modal
+        visible={editModal.visible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEditModal({ ...editModal, visible: false })}
+      >
+        <View style={styles.modalOverlay}>
+          <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
+          <TouchableOpacity 
+            style={StyleSheet.absoluteFill} 
+            activeOpacity={1} 
+            onPress={() => setEditModal({ ...editModal, visible: false })} 
+          />
+          
+          <View style={[styles.modalContent, { backgroundColor: t.panelBg, borderColor: t.panelBorder }]}>
+            <Text style={[styles.modalTitle, { color: t.t1 }]}>{editModal.title}</Text>
+            
+            <TextInput
+              style={[styles.modalInput, { color: t.t1, borderColor: t.panelBorder, backgroundColor: t.rowBg }]}
+              value={editModal.value}
+              onChangeText={(text) => setEditModal({ ...editModal, value: text })}
+              placeholder={editModal.title}
+              placeholderTextColor={t.t3}
+              secureTextEntry={editModal.type === 'password'}
+              autoCapitalize={editModal.type === 'email' ? 'none' : 'words'}
+              autoCorrect={false}
+              autoFocus
+            />
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={[styles.modalBtn, { backgroundColor: t.rowBg }]} 
+                onPress={() => setEditModal({ ...editModal, visible: false })}
+              >
+                <Text style={[styles.modalBtnText, { color: t.t1 }]}>{i18n.cancel}</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.modalBtn, { backgroundColor: '#7c3aed' }]} 
+                onPress={handleSaveEdit}
+              >
+                <Text style={[styles.modalBtnText, { color: '#fff' }]}>{i18n.save}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -428,5 +530,52 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#f87171',
     letterSpacing: 0.3,
+  },
+
+  // Modal
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    width: '100%',
+    borderRadius: 24,
+    padding: 24,
+    borderWidth: 1,
+    gap: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  modalInput: {
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    borderWidth: 1,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
   },
 });

@@ -16,7 +16,7 @@ interface BadHabitCounterProps {
   onFutureError?: () => void;
 }
 
-export function BadHabitCounter({ habit, log }: BadHabitCounterProps) {
+export function BadHabitCounter({ habit, log, selectedDate, onFutureError }: BadHabitCounterProps) {
   const updateLog = useHabitStore((state) => state.updateLog);
 
   const isTimeLimit = habit.limitType === 'time';

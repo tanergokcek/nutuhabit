@@ -23,7 +23,7 @@ interface TimerDisplayProps {
   onFutureError?: () => void;
 }
 
-export function TimerDisplay({ habit }: TimerDisplayProps) {
+export function TimerDisplay({ habit, selectedDate, onFutureError }: TimerDisplayProps) {
   const {
     activeHabitId,
     elapsedSeconds,

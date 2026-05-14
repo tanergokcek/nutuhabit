@@ -365,6 +365,16 @@ export interface Translations {
   limitWarningTitle: string;
   limitWarningMsg: string;
   selectBadHabitOccurrence: string;
+  updateError: string;
+  sectionAccount: string;
+  changeName: string;
+  changeEmail: string;
+  changePassword: string;
+  editProfileTitle: string;
+  newNameLabel: string;
+  newEmailLabel: string;
+  newPasswordLabel: string;
+  updateSuccess: string;
 }
 
 export const tr: Translations = {
@@ -721,6 +731,16 @@ export const tr: Translations = {
   limitWarningTitle: 'Limit Aşıldı!',
   limitWarningMsg: 'Bugünlük sınırı geçtin, daha dikkatli olmalısın.',
   selectBadHabitOccurrence: 'Lütfen kötü alışkanlığı gerçekleştirdiğinizi onaylayın.',
+  updateError: 'Güncelleme sırasında bir hata oluştu.',
+  sectionAccount: 'HESAP AYARLARI',
+  changeName: 'İsim Soyisim Değiştir',
+  changeEmail: 'E-posta Değiştir',
+  changePassword: 'Şifre Değiştir',
+  editProfileTitle: 'Profili Düzenle',
+  newNameLabel: 'Yeni İsim',
+  newEmailLabel: 'Yeni E-posta',
+  newPasswordLabel: 'Yeni Şifre',
+  updateSuccess: 'Başarıyla güncellendi.',
 };
 
 export const en: Translations = {
@@ -1077,4 +1097,14 @@ export const en: Translations = {
   limitWarningTitle: 'Limit Exceeded!',
   limitWarningMsg: 'You have passed the limit for today, be more careful.',
   selectBadHabitOccurrence: 'Please confirm that you performed the bad habit.',
+  updateError: 'An error occurred during update.',
+  sectionAccount: 'ACCOUNT SETTINGS',
+  changeName: 'Change Name',
+  changeEmail: 'Change Email',
+  changePassword: 'Change Password',
+  editProfileTitle: 'Edit Profile',
+  newNameLabel: 'New Name',
+  newEmailLabel: 'New Email',
+  newPasswordLabel: 'New Password',
+  updateSuccess: 'Updated successfully.',
 };

@@ -329,7 +329,7 @@ function BadHabitCard({ habit, log, onPress }: { habit: BadHabit; log: HabitLog 
               backgroundColor: pct >= 80 ? COLORS.danger : pct >= 50 ? COLORS.warning : COLORS.success,
             }]} />
           </View>
-          <BadHabitCounter habit={habit} log={log} />
+          <BadHabitCounter habit={habit} log={log} selectedDate={selectedDate} />
           <BadWeekDots habitId={habit.id} />
         </View>
       </BlurView>
