@@ -1901,7 +1901,8 @@ export default function HomeScreen() {
           isArchived: false,
           sortOrder: 0,
           userId: user.id,
-          frequency: i18n.freqEveryday,
+          frequency: i18n.freqEveryday as any,
+          goalPeriod: 'daily',
         };
         const savedHabit = await createHabitWithId(SLEEP_HABIT_ID, newHabit);
         if (savedHabit) {

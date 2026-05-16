@@ -5,7 +5,7 @@ import { upsertLog } from '@/src/services/habits';
 import { addNote } from '@/src/services/notes';
 import { useAuthStore } from '@/src/store/useAuthStore';
 import { useHabitStore } from '@/src/store/useHabitStore';
-import { HabitType, LogStatus, LogEntry, BadHabit } from '@/src/types/habit';
+import { HabitType, LogStatus, LogEntry, BadHabit, TimeHabit } from '@/src/types/habit';
 import { getTodayString } from '@/src/utils/date';
 import { calculateStreak } from '@/src/utils/streak';
 import { Ionicons } from '@expo/vector-icons';
@@ -543,32 +543,25 @@ export default function LogHabitScreen() {
     if (!selectedHabitId || !selectedDate) return;
     const existingLog = logs.find(l => l.habitId === selectedHabitId && l.date === selectedDate);
     
+    // Her yeni girişte notları ve süreleri sıfırla (User isteği: cache'de kalmasın)
+    setNotes('');
+    setDurH(0);
+    setDurM(0);
+
     if (existingLog) {
-      if (existingLog.elapsedMinutes !== undefined && selectedType !== 'time') {
-        setDurH(Math.floor(existingLog.elapsedMinutes / 60));
-        setDurM(existingLog.elapsedMinutes % 60);
-      } else {
-        setDurH(0);
-        setDurM(0);
-      }
-      // Uyku alışkanlığı için JSON verisini (saatleri) notlarda gösterme
-      const isSleepJson = selectedHabitId === 'habit-sleep' && existingLog.note?.startsWith('{');
-      setNotes(isSleepJson ? '' : (existingLog.note || ''));
       if (selectedType === 'done') {
         setStatus(existingLog.status as LogStatus);
       } else if (selectedType === 'bad') {
         setStatus(existingLog.status === 'failed' ? 'failed' : null);
       }
     } else {
-      // Kayıt yoksa sıfırla
-      setDurH(0);
-      setDurM(0);
-      setNotes('');
+      // Kayıt yoksa varsayılan durumları ata
       if (selectedType === 'done') setStatus('done');
       else if (selectedType === 'bad') setStatus(null);
       else setStatus(null);
     }
-  }, [selectedHabitId, selectedDate, logs, selectedType]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedHabitId, selectedDate, selectedType]); 
 
   // Başlangıç/Bitiş modunda geçen süre
   const rangeMinutes = useMemo(() => {
