@@ -231,7 +231,17 @@ export default function Dashboard() {
       <aside className="sidebar">
         <div className="sidebar-header">
           <div className="logo-section">
-            <img src={logoIcon} alt="NutuHabit Logo" width="24" height="24" style={{ borderRadius: '6px' }} />
+            <img 
+              src={logoIcon} 
+              alt="NutuHabit Logo" 
+              width="24" 
+              height="24" 
+              style={{ borderRadius: '6px' }} 
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = '/logo.png';
+              }}
+            />
             <span className="logo-text brand-font">NutuHabit</span>
           </div>
           <button className="sidebar-toggle-inner" onClick={() => setSidebarOpen(!sidebarOpen)}>

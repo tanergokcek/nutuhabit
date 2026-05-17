@@ -62,7 +62,17 @@ export default function Login() {
       <div className="login-container">
         <div className="logo-area">
           <div className="logo-glow">
-            <img src={logoIcon} alt="NutuHabit Logo" width="60" height="60" style={{ borderRadius: '16px' }} />
+            <img 
+              src={logoIcon} 
+              alt="NutuHabit Logo" 
+              width="60" 
+              height="60" 
+              style={{ borderRadius: '16px' }} 
+              onError={(e) => {
+                e.currentTarget.onerror = null; // Prevent infinite loops if fallback fails
+                e.currentTarget.src = '/logo.png';
+              }}
+            />
           </div>
           <h1 className="app-name">NutuHabit</h1>
           <p className="tagline">Alışkanlıklarını şekillendir</p>
