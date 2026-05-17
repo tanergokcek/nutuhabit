@@ -4,7 +4,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 export default function TrendLine({ data, metricType }) {
   if (!data || data.length === 0) return null;
 
-  const isTime = metricType === 'time';
+  const isTime = metricType === 'time' || metricType === 'bad';
   const totalItems = data.length;
   
   let averageRate = 0;

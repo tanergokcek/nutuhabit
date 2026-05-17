@@ -4,7 +4,7 @@ import { useHabitStore } from '../store/useHabitStore';
 import { auth } from '../firebaseConfig';
 import { signOut } from 'firebase/auth';
 import { format, subDays, eachDayOfInterval } from 'date-fns';
-import { LogOut, BarChart3, Calendar as CalendarIcon, Menu, X, Settings as SettingsIcon, User, Mail, Lock, ChevronDown } from 'lucide-react';
+import { LogOut, BarChart3, Calendar as CalendarIcon, Menu, X, Settings as SettingsIcon, User, Mail, Lock, ChevronDown, Bell, StickyNote, CheckSquare, List, Sparkles } from 'lucide-react';
 import WeeklyChart from '../components/charts/WeeklyChart';
 import TrendLine from '../components/charts/TrendLine';
 import HabitTypeDonut from '../components/charts/HabitTypeDonut';
@@ -13,12 +13,17 @@ import MonthlyHeatmap from '../components/charts/MonthlyHeatmap';
 import logoIcon from '../assets/brand/favicon.png';
 import CalendarView from '../components/CalendarView';
 import SettingsView from '../components/SettingsView';
+import RemindersView from '../components/RemindersView';
+import NotesView from '../components/NotesView';
+import TodosView from '../components/TodosView';
+import RecordsView from '../components/RecordsView';
+import AICoachView from '../components/AICoachView';
 import './Dashboard.css';
 
 export default function Dashboard() {
   const { user, logout } = useAuthStore();
   const { habits, logs, loading, fetchData } = useHabitStore();
-  const [activeTab, setActiveTab] = useState('charts'); // 'charts' or 'calendar'
+  const [activeTab, setActiveTab] = useState('calendar'); // 'charts' or 'calendar'
   const [timeRange, setTimeRange] = useState('week'); // 'day', 'week', 'month', 'year'
   const [habitType, setHabitType] = useState('all'); // 'all', 'done', 'time', 'bad'
   const [selectedHabitId, setSelectedHabitId] = useState('all');
@@ -78,17 +83,22 @@ export default function Dashboard() {
         
         let totalPossible = filteredHabits.length * 30; // Yaklaşık
         let completed = 0;
-        // Basit hesap: o ayki tüm loglardaki başarı oranı
+        let totalMinutes = 0;
         for (const habit of filteredHabits) {
           const habitLogs = monthLogs.filter(l => l.habitId === habit.id);
           for (const log of habitLogs) {
             if (habit.type === 'done' && log.status === 'done') completed++;
-            else if (habit.type === 'time' && (log.elapsedMinutes || 0) >= (habit.goalMinutes || 0)) completed++;
-            else if (habit.type === 'bad' && (log.usedMinutes || 0) <= (habit.limitMinutes || 60)) completed++;
+            else if (habit.type === 'time') {
+              totalMinutes += (log.elapsedMinutes || 0);
+              if ((log.elapsedMinutes || 0) >= (habit.goalMinutes || 0)) completed++;
+            } else if (habit.type === 'bad') {
+              totalMinutes += (log.usedMinutes || log.usedCount || 0);
+              if ((log.usedMinutes || 0) <= (habit.limitMinutes || 60)) completed++;
+            }
           }
         }
         const rate = monthLogs.length > 0 ? completed / monthLogs.length : 0;
-        return { label: monthStr, completionRate: rate };
+        return { label: monthStr, completionRate: rate, totalMinutes };
       });
     }
 
@@ -106,7 +116,7 @@ export default function Dashboard() {
           totalMinutes += (log.elapsedMinutes || 0);
           if ((log.elapsedMinutes || 0) >= (habit.goalMinutes || 0)) completed++;
         } else if (habit.type === 'bad') {
-          totalMinutes += (log.usedMinutes || 0);
+          totalMinutes += (log.usedMinutes || log.usedCount || 0);
           if ((log.usedMinutes || 0) <= (habit.limitMinutes || 60)) completed++;
         }
       }
@@ -123,7 +133,7 @@ export default function Dashboard() {
   const trendData = useMemo(() => {
     return chartData.map(d => ({
       label: d.label,
-      value: currentMetric === 'time' ? d.totalMinutes : Math.round(d.completionRate * 100),
+      value: (currentMetric === 'time' || currentMetric === 'bad') ? d.totalMinutes : Math.round(d.completionRate * 100),
       originalData: d
     }));
   }, [chartData, currentMetric]);
@@ -155,23 +165,41 @@ export default function Dashboard() {
     }, {});
   }, [habits, logs, today]);
 
-  const todayCompletionRate = chartData.find(d => d.label === todayStr.substring(5))?.completionRate || 0;
+  const todayData = chartData.find(d => d.label === todayStr.substring(5));
+  const todayCompletionRate = todayData?.completionRate || 0;
+  const todayTotalMinutes = todayData?.totalMinutes || 0;
   
+  const totalDurationMinutes = useMemo(() => {
+    return chartData.reduce((sum, d) => sum + (d.totalMinutes || 0), 0);
+  }, [chartData]);
+
+  const formatDuration = (minutes) => {
+    if (!minutes) return '0dk';
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    if (h > 0 && m > 0) return `${h}sa ${m}dk`;
+    if (h > 0) return `${h}sa`;
+    return `${m}dk`;
+  };
+
   const topHabitsData = useMemo(() => {
     return filteredHabits.map((habit) => {
       const habitLogs = logs.filter(l => l.habitId === habit.id);
       if (habitLogs.length === 0) return { id: habit.id, name: habit.name, icon: habit.icon, rate: 0, type: habit.type };
       
       let completed = 0;
+      let totalMinutes = 0;
       for (const log of habitLogs) {
         if (habit.type === 'done' && log.status === 'done') completed++;
         else if (habit.type === 'time') {
+          totalMinutes += (log.elapsedMinutes || 0);
           if ((log.elapsedMinutes || 0) >= (habit.goalMinutes || 0)) completed++;
         } else if (habit.type === 'bad') {
+          totalMinutes += (log.usedMinutes || log.usedCount || 0);
           if ((log.usedMinutes || 0) <= (habit.limitMinutes || 60)) completed++;
         }
       }
-      return { id: habit.id, name: habit.name, icon: habit.icon, rate: completed / habitLogs.length, type: habit.type };
+      return { id: habit.id, name: habit.name, icon: habit.icon, rate: completed / habitLogs.length, type: habit.type, totalMinutes };
     });
   }, [filteredHabits, logs]);
 
@@ -213,6 +241,13 @@ export default function Dashboard() {
 
         <nav className="sidebar-nav">
           <button 
+            className={`nav-item ${activeTab === 'calendar' ? 'active' : ''}`}
+            onClick={() => setActiveTab('calendar')}
+          >
+            <CalendarIcon size={20} />
+            <span>Takvim</span>
+          </button>
+          <button 
             className={`nav-item ${activeTab === 'charts' ? 'active' : ''}`}
             onClick={() => setActiveTab('charts')}
           >
@@ -220,11 +255,39 @@ export default function Dashboard() {
             <span>Grafikler</span>
           </button>
           <button 
-            className={`nav-item ${activeTab === 'calendar' ? 'active' : ''}`}
-            onClick={() => setActiveTab('calendar')}
+            className={`nav-item ${activeTab === 'ai' ? 'active' : ''}`}
+            onClick={() => setActiveTab('ai')}
           >
-            <CalendarIcon size={20} />
-            <span>Takvim</span>
+            <Sparkles size={20} />
+            <span>AI Koçunuz</span>
+          </button>
+          <button 
+            className={`nav-item ${activeTab === 'reminders' ? 'active' : ''}`}
+            onClick={() => setActiveTab('reminders')}
+          >
+            <Bell size={20} />
+            <span>Hatırlatıcı</span>
+          </button>
+          <button 
+            className={`nav-item ${activeTab === 'notes' ? 'active' : ''}`}
+            onClick={() => setActiveTab('notes')}
+          >
+            <StickyNote size={20} />
+            <span>Notlar</span>
+          </button>
+          <button 
+            className={`nav-item ${activeTab === 'todos' ? 'active' : ''}`}
+            onClick={() => setActiveTab('todos')}
+          >
+            <CheckSquare size={20} />
+            <span>Yapılacaklar</span>
+          </button>
+          <button 
+            className={`nav-item ${activeTab === 'records' ? 'active' : ''}`}
+            onClick={() => setActiveTab('records')}
+          >
+            <List size={20} />
+            <span>Günlük Kayıtlar</span>
           </button>
           <button 
             className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`}
@@ -257,7 +320,16 @@ export default function Dashboard() {
           </button>
           <div className="header-titles">
             <h1 className="content-title brand-font">
-              {activeTab === 'charts' ? 'İstatistikler' : activeTab === 'calendar' ? 'Alışkanlık Takvimi' : 'Hesap Ayarları'}
+              {{
+                charts: 'İstatistikler',
+                calendar: 'Alışkanlık Takvimi',
+                settings: 'Hesap Ayarları',
+                reminders: 'Hatırlatıcılar',
+                notes: 'Notlar',
+                todos: 'Yapılacaklar',
+                records: 'Günlük Kayıtlar',
+                ai: 'AI Koçunuz'
+              }[activeTab] || 'NutuHabit'}
             </h1>
           </div>
         </header>
@@ -287,7 +359,9 @@ export default function Dashboard() {
               <div className="summary-grid">
                 <div className="summary-card">
                   <span className="summary-emoji">📊</span>
-                  <span className="summary-value">{Math.round(todayCompletionRate * 100)}%</span>
+                  <span className="summary-value">
+                    {(currentMetric === 'time' || currentMetric === 'bad') ? formatDuration(todayTotalMinutes) : `${Math.round(todayCompletionRate * 100)}%`}
+                  </span>
                   <span className="summary-label">Bugün</span>
                 </div>
                 <div className="summary-card">
@@ -295,6 +369,13 @@ export default function Dashboard() {
                   <span className="summary-value">{Math.round(overallRate * 100)}%</span>
                   <span className="summary-label">Genel Başarı</span>
                 </div>
+                {(currentMetric === 'time' || currentMetric === 'bad') && (
+                  <div className="summary-card">
+                    <span className="summary-emoji">⏱️</span>
+                    <span className="summary-value">{formatDuration(totalDurationMinutes)}</span>
+                    <span className="summary-label">Toplam Süre</span>
+                  </div>
+                )}
                 <div className="summary-card">
                   <span className="summary-emoji">✅</span>
                   <span className="summary-value">{habits.filter(h => !h.isArchived).length}</span>
@@ -350,18 +431,38 @@ export default function Dashboard() {
                 <TrendLine data={trendData} metricType={currentMetric} />
                 <MonthlyHeatmap logs={logs} filteredHabits={filteredHabits} year={today.getFullYear()} month={today.getMonth() + 1} />
                 <HabitTypeDonut logs={logs} filteredHabits={filteredHabits} />
-                <TopHabitsBar data={topHabitsData} />
+                <TopHabitsBar data={topHabitsData} metricType={currentMetric} />
               </div>
             </div>
           ) : activeTab === 'calendar' ? (
             <div className="calendar-view-container animate-fade-in">
               <CalendarView />
             </div>
-          ) : (
+          ) : activeTab === 'settings' ? (
             <div className="settings-view-container animate-fade-in">
               <SettingsView />
             </div>
-          )}
+          ) : activeTab === 'reminders' ? (
+            <div className="reminders-view-container animate-fade-in">
+              <RemindersView />
+            </div>
+          ) : activeTab === 'notes' ? (
+            <div className="notes-view-container animate-fade-in">
+              <NotesView />
+            </div>
+          ) : activeTab === 'todos' ? (
+            <div className="todos-view-container animate-fade-in">
+              <TodosView />
+            </div>
+          ) : activeTab === 'records' ? (
+            <div className="records-view-container animate-fade-in">
+              <RecordsView />
+            </div>
+          ) : activeTab === 'ai' ? (
+            <div className="ai-view-container animate-fade-in">
+              <AICoachView />
+            </div>
+          ) : null}
         </div>
       </main>
     </div>

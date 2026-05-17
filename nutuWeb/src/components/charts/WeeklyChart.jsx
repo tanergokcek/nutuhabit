@@ -4,7 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 export default function WeeklyChart({ data, metricType }) {
   if (!data || data.length === 0) return null;
 
-  const isTime = metricType === 'time';
+  const isTime = metricType === 'time' || metricType === 'bad';
   const yTicks = isTime ? undefined : [0, 50, 100];
 
   const formatYAxis = (val) => {
